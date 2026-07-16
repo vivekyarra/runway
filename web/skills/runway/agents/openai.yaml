@@ -1,0 +1,4 @@
+interface:
+  display_name: "Runway"
+  short_description: "Coordinate parallel coding agents safely"
+  default_prompt: "Use Runway to reserve a safe work lane before editing this repository."

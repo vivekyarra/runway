@@ -1,0 +1,8 @@
+node_modules/
+dist/
+.cache/
+.codex-docs-cache/
+.npm-cache/
+.runway/
+coverage/
+*.log
