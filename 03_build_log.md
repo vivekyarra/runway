@@ -23,3 +23,7 @@
 - Forward-tested the generated `runway` skill against the real fixture. It correctly stopped before edits on a critical hold and reported exact scope evidence. Tightened the skill to require inspection of `lane create` clearance before reservation.
 - Hardened ownership semantics so only the established airborne lane remains protected when two airborne scopes collide; the later collision is held. Added a regression test for that case.
 - Final verification: `npm test` (6/6), `npm run lint`, `npm run build`, `npm run package:demo`, static-demo HTTP smoke, and the skill validator all passed. Removed only the ignored fixture state created by validation.
+
+## 2026-07-17 - model access gate
+
+- Attempted a read-only Codex CLI review with `--model gpt-5.6` after the build. The current ChatGPT-account login rejected that model, and no OpenAI/Codex API credential is configured. This attempt is not used as GPT-5.6 compliance evidence; a GPT-5.6-enabled Codex account or API credential is required before submission.

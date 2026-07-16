@@ -22,5 +22,6 @@ Track: **Developer Tools**. Rules and required fields: `00_facts.md`.
 - Publish this repository and add its URL to Devpost.
 - Record/upload the public, audible YouTube video above (under 3 minutes).
 - Run `/feedback` in the core-build Codex thread and paste its Session ID into Devpost.
+- Before claiming compliance, run the core workflow in a GPT-5.6-enabled Codex environment and capture evidence there. The current workspace's ChatGPT-account CLI login rejected the `gpt-5.6` model flag, so its failed validation attempt is not submission evidence.
 - Follow the no-rebuild test path in `README.md` on a clean machine.
 - Re-run the three verification commands in `README.md`; confirm the repo, README, and license are public and current.
