@@ -27,3 +27,4 @@
 ## 2026-07-17 - model access gate
 
 - Attempted a read-only Codex CLI review with `--model gpt-5.6` after the build. The current ChatGPT-account login rejected that model, and no OpenAI/Codex API credential is configured. This attempt is not used as GPT-5.6 compliance evidence; a GPT-5.6-enabled Codex account or API credential is required before submission.
+- A supplied API credential was accepted by the OpenAI Models API and exposed `gpt-5.6-sol`, `gpt-5.6-terra`, and `gpt-5.6-luna`. The documented one-run `CODEX_API_KEY` path selected API authentication correctly, but the read-only `gpt-5.6-sol` review was rejected with `Quota exceeded`. No credential was written to the repository.
