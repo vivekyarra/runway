@@ -4,7 +4,7 @@ export const createDemoState = () => ({
     name: 'parcel-ops',
     branch: 'release/checkout-guardrails',
     language: 'JavaScript / TypeScript',
-    lastScan: '2 min ago',
+    lastScan: 'fixture snapshot',
   },
   lanes: [
     {
@@ -15,7 +15,7 @@ export const createDemoState = () => ({
       files: ['src/checkout/CheckoutForm.jsx'],
       symbols: ['CheckoutForm', 'submitOrder'],
       contracts: ['submit-order'],
-      evidence: [{ command: 'npm run test:checkout', result: 'passing', at: '09:42' }],
+      evidence: [{ command: 'node --test fixtures/parcel-ops/tests/checkout.test.mjs', result: 'passing', at: '09:42' }],
       note: 'UI-only lane. Do not change pricing behavior.',
       createdAt: '2026-07-17T09:31:00.000Z',
       updatedAt: '2026-07-17T09:42:00.000Z',
@@ -28,7 +28,7 @@ export const createDemoState = () => ({
       files: ['src/quote.js', 'src/api/quote.js'],
       symbols: ['quoteTotal', 'quoteSummary'],
       contracts: ['pricing', 'quote-response'],
-      evidence: [{ command: 'node --test quote.test.js', result: 'passing', at: '09:39' }],
+      evidence: [{ command: 'node --test fixtures/parcel-ops/tests/quote.test.mjs', result: 'passing', at: '09:39' }],
       note: 'Owns the quote calculation until handoff.',
       createdAt: '2026-07-17T09:18:00.000Z',
       updatedAt: '2026-07-17T09:39:00.000Z',
@@ -41,10 +41,10 @@ export const createDemoState = () => ({
       files: ['src/quote.js', 'src/tax/adjustments.js'],
       symbols: ['quoteTotal', 'calculateTaxAdjustment'],
       contracts: ['pricing', 'tax-adjustment'],
-      evidence: [],
-      note: 'Requested after pricing lane had already departed.',
+      evidence: [{ command: 'node --test fixtures/parcel-ops/tests/tax.test.mjs', result: 'passing', at: '09:41' }],
+      note: 'Focused tax test recorded after the hold; reroute the declaration and recheck clearance before handoff.',
       createdAt: '2026-07-17T09:35:00.000Z',
-      updatedAt: '2026-07-17T09:40:00.000Z',
+      updatedAt: '2026-07-17T09:41:00.000Z',
     },
     {
       id: 'receipt-copy',
@@ -62,6 +62,7 @@ export const createDemoState = () => ({
   ],
   activity: [
     { time: '09:44', type: 'reserve', lane: 'receipt-copy', text: 'Ada requested a new lane.' },
+    { time: '09:41', type: 'evidence', lane: 'tax-adjustment', text: 'Sol attached a focused tax-adjustment test.' },
     { time: '09:40', type: 'hold', lane: 'tax-adjustment', text: 'Runway held Sol for a shared pricing symbol.' },
     { time: '09:39', type: 'evidence', lane: 'pricing-rules', text: 'Theo attached a passing quote test.' },
     { time: '09:31', type: 'launch', lane: 'ui-checkout', text: 'Mira was cleared for the checkout lane.' },

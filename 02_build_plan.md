@@ -27,3 +27,8 @@ Deadline anchor: the Jul 21, 2026, 5:00 PM PT submission deadline in `00_facts.m
 - Scope semantic analysis to JS/TS and label it heuristic; never claim formal correctness or universal collision detection.
 - Do not execute an agent, create a worktree, or modify a target repository unless an operator invokes that explicit CLI action.
 - Keep the demo fully usable without credentials. `README.md` and `03_build_log.md` remain the submission evidence trail required by `00_facts.md`.
+
+
+## 2026-07-17 - implementation clarification (append-only)
+
+The original architecture line saying the collision engine scores import relationships was broader than the implemented clearance behavior. The current shared collision engine compares declared files, exported symbols, behavioral contracts, and module-area proximity. The CLI scan separately inventories common named JS/TS exports, imports, and routes; scan results do not automatically change clearance. This keeps the implemented heuristic transparent and preserves the guardrail against overclaiming static analysis.

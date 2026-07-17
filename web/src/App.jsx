@@ -1,12 +1,17 @@
 import { useMemo, useState } from 'react'
 import './App.css'
 import {
+  assertHandoffAllowed,
+  assertRerouteAllowed,
   buildHandoff,
   conflictsForLane,
   createLane,
   deriveConflicts,
   formatList,
+  hasDeclaredScope,
   laneClearance,
+  reserveLaneState,
+  rerouteScope,
   runwayMetrics,
 } from './core/runway.js'
 import { createDemoState } from './demo/demoState.js'
@@ -71,10 +76,15 @@ function App() {
   const selectedLane = runway.lanes.find((lane) => lane.id === selectedId) ?? runway.lanes[0]
   const selectedConflicts = conflictsForLane(selectedLane.id, conflicts)
   const selectedClearance = laneClearance(selectedLane, conflicts)
+  const selectedHasEvidence = Boolean(selectedLane.evidence?.length)
 
   const notify = (message) => {
     setToast(message)
     window.setTimeout(() => setToast(''), 3200)
+  }
+
+  const navigateTo = (id) => {
+    document.getElementById(id)?.scrollIntoView({ behavior: 'smooth', block: 'start' })
   }
 
   const updateLane = (laneId, update, activity) => {
@@ -86,54 +96,66 @@ function App() {
   }
 
   const reserveLane = () => {
-    const clearance = laneClearance(selectedLane, conflicts)
-    if (clearance.state === 'hold') {
+    try {
+      const reservation = reserveLaneState(selectedLane, conflicts)
       updateLane(
         selectedLane.id,
-        (lane) => ({ ...lane, status: 'holding' }),
-        { type: 'hold', lane: selectedLane.id, text: `${selectedLane.agent} was held for a collision.` },
+        (lane) => ({ ...lane, status: reservation.status }),
+        { type: reservation.status === 'holding' ? 'hold' : 'launch', lane: selectedLane.id, text: `${selectedLane.agent} ${reservation.status === 'holding' ? 'was held for a collision.' : 'received clearance.'}` },
       )
-      notify('Runway issued a hold: reroute before editing shared behavior.')
-      return
+      notify(reservation.status === 'holding'
+        ? 'Runway issued a hold: reroute the declared scope before editing.'
+        : 'Lane reserved. The agent can begin scoped work.')
+    } catch (error) {
+      notify(error.message)
     }
-
-    updateLane(
-      selectedLane.id,
-      (lane) => ({ ...lane, status: 'airborne' }),
-      { type: 'launch', lane: selectedLane.id, text: `${selectedLane.agent} received clearance.` },
-    )
-    notify('Lane reserved. The agent can begin scoped work.')
   }
 
   const rerouteLane = () => {
-    updateLane(
-      selectedLane.id,
-      (lane) => ({
-        ...lane,
+    try {
+      assertRerouteAllowed(selectedLane)
+      const candidate = {
+        ...rerouteScope(selectedLane, selectedConflicts),
         status: 'queued',
-        files: lane.files.filter((file) => file !== 'src/quote.js'),
-        symbols: lane.symbols.filter((symbol) => symbol.toLowerCase() !== 'quotetotal'),
-        contracts: lane.contracts.filter((contract) => contract.toLowerCase() !== 'pricing'),
-        note: 'Rerouted to its own tax adjustment seam. Pricing remains owned by Theo.',
-      }),
-      { type: 'reroute', lane: selectedLane.id, text: `${selectedLane.agent} accepted a safe reroute.` },
-    )
-    notify('Reroute applied. Recheck clearance, then reserve the lane.')
+        note: 'Removed directly overlapping declarations. Recheck clearance before reserving.',
+      }
+      if (!hasDeclaredScope(candidate)) {
+        notify('Runway cannot remove all overlap without losing the declared scope. Narrow it with the CLI, then recheck.')
+        return
+      }
+
+      const nextLanes = runway.lanes.map((lane) => (lane.id === selectedLane.id ? candidate : lane))
+      const nextClearance = laneClearance(candidate, deriveConflicts(nextLanes))
+      updateLane(
+        selectedLane.id,
+        () => candidate,
+        { type: 'reroute', lane: selectedLane.id, text: `${selectedLane.agent} removed directly overlapping scope.` },
+      )
+      notify(nextClearance.state === 'hold'
+        ? 'Direct overlap was removed, but this lane still holds. Narrow it with the CLI and recheck.'
+        : 'Scope rerouted. Recheck clearance, then reserve.')
+    } catch (error) {
+      notify(error.message)
+    }
   }
 
   const createHandoff = () => {
-    const receipt = buildHandoff(selectedLane, conflicts)
-    const evidence = [
-      ...(selectedLane.evidence ?? []),
-      { command: 'node --test', result: 'passing', at: formatTime() },
-    ]
-
-    updateLane(
-      selectedLane.id,
-      (lane) => ({ ...lane, status: 'handoff', evidence, handoff: receipt }),
-      { type: 'evidence', lane: selectedLane.id, text: `${selectedLane.agent} created a structured handoff.` },
-    )
-    notify('Handoff receipt captured with scope, evidence, and remaining risk.')
+    try {
+      assertHandoffAllowed(selectedLane, conflicts)
+      if (!selectedHasEvidence) {
+        notify('Attach actual operator-provided evidence with the CLI before creating a handoff.')
+        return
+      }
+      const receipt = buildHandoff(selectedLane, conflicts)
+      updateLane(
+        selectedLane.id,
+        (lane) => ({ ...lane, status: 'handoff', handoff: receipt }),
+        { type: 'evidence', lane: selectedLane.id, text: `${selectedLane.agent} created a structured handoff.` },
+      )
+      notify('Handoff receipt captured with declared scope, recorded evidence, and remaining risk.')
+    } catch (error) {
+      notify(error.message)
+    }
   }
 
   const resetDemo = () => {
@@ -158,24 +180,33 @@ function App() {
     event.preventDefault()
     const form = new FormData(event.currentTarget)
     const id = (form.get('id') || '').toString().trim().toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/(^-|-$)/g, '')
-    const lane = createLane({
-      id: id || undefined,
-      agent: form.get('agent'),
-      task: form.get('task'),
-      files: formatList(form.get('files')),
-      symbols: formatList(form.get('symbols')),
-      contracts: formatList(form.get('contracts')),
-      note: 'Awaiting clearance from Runway.',
-    })
 
-    setRunway((current) => ({
-      ...current,
-      lanes: [...current.lanes, lane],
-      activity: [{ time: formatTime(), type: 'reserve', lane: lane.id, text: `${lane.agent} requested ${lane.id}.` }, ...current.activity].slice(0, 7),
-    }))
-    setSelectedId(lane.id)
-    setComposerOpen(false)
-    notify('New lane entered the airspace. Inspect it before launch.')
+    try {
+      const lane = createLane({
+        id: id || undefined,
+        agent: form.get('agent'),
+        task: form.get('task'),
+        files: formatList(form.get('files')),
+        symbols: formatList(form.get('symbols')),
+        contracts: formatList(form.get('contracts')),
+        note: 'Awaiting clearance from Runway.',
+      })
+      if (runway.lanes.some((existing) => existing.id === lane.id)) {
+        notify(`A lane named ${lane.id} already exists. Choose a unique lane ID.`)
+        return
+      }
+
+      setRunway((current) => ({
+        ...current,
+        lanes: [...current.lanes, lane],
+        activity: [{ time: formatTime(), type: 'reserve', lane: lane.id, text: `${lane.agent} requested ${lane.id}.` }, ...current.activity].slice(0, 7),
+      }))
+      setSelectedId(lane.id)
+      setComposerOpen(false)
+      notify('New lane entered the airspace. Inspect it before launch.')
+    } catch (error) {
+      notify(error.message)
+    }
   }
 
   return (
@@ -204,9 +235,9 @@ function App() {
           </div>
 
           <nav className="sidebar-nav" aria-label="Runway navigation">
-            <button className="nav-link nav-link--active"><Icon name="radar" size={17} />Airspace <span>{metrics.lanes}</span></button>
-            <button className="nav-link"><Icon name="shield" size={17} />Collision radar <span>{metrics.conflicts}</span></button>
-            <button className="nav-link"><Icon name="check" size={17} />Evidence ledger <span>{metrics.evidenceCount}</span></button>
+            <button className="nav-link nav-link--active" aria-controls="airspace" onClick={() => navigateTo('airspace')}><Icon name="radar" size={17} />Airspace <span>{metrics.lanes}</span></button>
+            <button className="nav-link" aria-controls="collision-radar" onClick={() => navigateTo('collision-radar')}><Icon name="shield" size={17} />Collision radar <span>{metrics.conflicts}</span></button>
+            <button className="nav-link" aria-controls="evidence-ledger" onClick={() => navigateTo('evidence-ledger')}><Icon name="check" size={17} />Evidence ledger <span>{metrics.evidenceCount}</span></button>
           </nav>
 
           <div className="protocol-card">
@@ -226,12 +257,12 @@ function App() {
           <section className="hero-panel">
             <div>
               <div className="eyebrow eyebrow--lime">AIRSPACE STATUS / {runway.repo.name.toUpperCase()}</div>
-              <h1>Every agent deserves a runway.</h1>
-              <p>Assign a bounded lane before the diff exists. Runway exposes shared behavior before parallel work turns into a merge surprise.</p>
+              <h1>Clear scope before code diverges.</h1>
+              <p>Before agents edit, Runway compares the files, exported symbols, and behavioral contracts they voluntarily declare.</p>
             </div>
             <div className="hero-badge">
-              <span className="hero-badge__ring"><span /></span>
-              <div><strong>{metrics.confidence}%</strong><span>clearance confidence</span></div>
+              <span className="hero-badge__ring" style={{ '--clearance': `${metrics.confidence}%` }}><span /></span>
+              <div><strong>{metrics.confidence}%</strong><span>clearance rate</span></div>
             </div>
           </section>
 
@@ -243,10 +274,10 @@ function App() {
           </section>
 
           <section className="operations-grid">
-            <article className="panel airspace-panel">
+            <article id="airspace" className="panel airspace-panel">
               <div className="panel-heading">
                 <div>
-                  <div className="eyebrow">LIVE AIRSPACE</div>
+                  <div className="eyebrow">DECLARED LANES</div>
                   <h2>Agent lanes</h2>
                 </div>
                 <div className="legend" aria-label="Lane status legend">
@@ -282,10 +313,10 @@ function App() {
               </div>
             </article>
 
-            <article className="panel radar-panel">
+            <article id="collision-radar" className="panel radar-panel">
               <div className="panel-heading">
-                <div><div className="eyebrow">PREDICTED BEFORE EDIT</div><h2>Collision radar</h2></div>
-                <span className="radar-live"><i />Live</span>
+                <div><div className="eyebrow">CLEARANCE BEFORE EDIT</div><h2>Collision radar</h2></div>
+                <span className="radar-live"><i />Declared scope</span>
               </div>
               <div className="radar-visual" aria-label="Collision radar graphic">
                 <div className="radar-ring radar-ring--one" /><div className="radar-ring radar-ring--two" /><div className="radar-ring radar-ring--three" />
@@ -294,7 +325,7 @@ function App() {
                 <span className="radar-blip radar-blip--one" /><span className="radar-blip radar-blip--two" /><span className="radar-blip radar-blip--three" />
               </div>
               <div className="radar-summary">
-                <span>Runway compares declared scope, not private reasoning.</span>
+                <span>Runway compares declared scope, not private prompts or edits.</span>
                 <strong>{metrics.conflicts} signals found</strong>
               </div>
               <div className="signal-list">
@@ -324,21 +355,31 @@ function App() {
               </div>
               <div className="lane-note"><Icon name="shield" size={16} /><span>{selectedLane.note || 'No extra constraints declared.'}</span></div>
               <div className="detail-actions">
-                {selectedClearance.state === 'hold' ? (
-                  <button className="button button--warning" onClick={rerouteLane}><Icon name="arrow" size={16} />Apply safe reroute</button>
-                ) : selectedClearance.state === 'protected' ? (
-                  <button className="button button--ghost" onClick={() => notify('This agent owns the shared behavior. Keep the declared scope and let the other lane reroute.')}><Icon name="shield" size={16} />Protected owner</button>
-                ) : (
+                {selectedLane.status === 'handoff' ? (
+                  <span className="action-note">Handoff complete. Open a new lane for follow-up work.</span>
+                ) : selectedClearance.state === 'blocked' ? (
+                  <span className="action-note">Declare at least one bounded scope before reserving.</span>
+                ) : selectedClearance.state === 'hold' ? (
+                  <button className="button button--warning" onClick={rerouteLane}><Icon name="arrow" size={16} />Remove overlap & recheck</button>
+                ) : selectedLane.status === 'queued' ? (
                   <button className="button button--solid" onClick={reserveLane}><Icon name="runway" size={16} />Reserve this lane</button>
+                ) : selectedClearance.state === 'protected' ? (
+                  <span className="action-note"><Icon name="shield" size={16} />Protected owner</span>
+                ) : (
+                  <span className="action-note">Lane is airborne in its declared scope.</span>
                 )}
-                <button className="button button--ghost" onClick={createHandoff}><Icon name="check" size={16} />Create handoff</button>
+                {selectedLane.status === 'airborne' && selectedClearance.state !== 'hold' && (
+                  selectedHasEvidence ? (
+                    <button className="button button--ghost" onClick={createHandoff}><Icon name="check" size={16} />Create handoff</button>
+                  ) : <span className="action-note">Attach operator-provided evidence with the CLI before handoff.</span>
+                )}
               </div>
             </article>
 
-            <article className="panel evidence-panel">
+            <article id="evidence-ledger" className="panel evidence-panel">
               <div className="panel-heading"><div><div className="eyebrow">RECEIPT</div><h2>Evidence & risk</h2></div><button className="icon-button" onClick={exportState} aria-label="Export Runway state"><Icon name="export" size={17} /></button></div>
               <div className={`clearance-banner clearance-banner--${selectedClearance.state}`}>
-                <span className="clearance-orb" /><div><strong>{selectedClearance.label}</strong><p>{selectedClearance.conflict ? 'Evidence is attached below. Resolve scope before takeoff.' : 'No declared semantic overlap in live lanes.'}</p></div>
+                <span className="clearance-orb" /><div><strong>{selectedClearance.label}</strong><p>{selectedClearance.conflict ? 'Evidence is attached below. Resolve scope before takeoff.' : 'No declared overlap among active lanes.'}</p></div>
               </div>
               {selectedConflicts.length > 0 ? (
                 <div className="risk-evidence">
@@ -346,16 +387,16 @@ function App() {
                     <div key={conflict.id} className="risk-row"><span className={`severity severity--${conflict.severity}`} /><div><strong>{severityCopy[conflict.severity]}</strong>{conflict.evidence.map((item) => <p key={item.kind}>{item.kind}: <code>{item.values.join(', ')}</code></p>)}</div><b>{conflict.score}</b></div>
                   ))}
                 </div>
-              ) : <div className="no-risk"><Icon name="check" size={20} />No live collision evidence.</div>}
+              ) : <div className="no-risk"><Icon name="check" size={20} />No declared collision evidence.</div>}
               <div className="evidence-list">
-                <span className="evidence-title">ATTACHED CHECKS</span>
-                {selectedLane.evidence?.length ? selectedLane.evidence.map((item, index) => <div className="evidence-row" key={`${item.command}-${index}`}><span className="evidence-check"><Icon name="check" size={13} /></span><code>{item.command}</code><span>{item.result}</span><time>{item.at}</time></div>) : <div className="no-evidence">Nothing attached yet. A lane is not a handoff until it has evidence.</div>}
+                <span className="evidence-title">ATTACHED EVIDENCE</span>
+                {selectedLane.evidence?.length ? selectedLane.evidence.map((item, index) => <div className="evidence-row" key={`${item.command}-${index}`}><span className="evidence-check"><Icon name="check" size={13} /></span><code>{item.command}</code><span>{item.result}</span><time>{item.at}</time></div>) : <div className="no-evidence">Runway records operator-provided evidence; it does not execute commands in the browser.</div>}
               </div>
             </article>
           </section>
 
           <section className="panel activity-panel">
-            <div className="panel-heading"><div><div className="eyebrow">CONTROL TOWER LOG</div><h2>Recent flight activity</h2></div><span className="log-note">Local state · exportable JSON</span></div>
+            <div className="panel-heading"><div><div className="eyebrow">CONTROL TOWER LOG</div><h2>Recent flight activity</h2></div><span className="log-note">Local state / exportable JSON</span></div>
             <div className="activity-list">
               {runway.activity.map((event, index) => <div className="activity-row" key={`${event.time}-${event.lane}-${index}`}><time>{event.time}</time><span className={`activity-mark activity-mark--${event.type}`} /><code>{event.lane}</code><p>{event.text}</p></div>)}
             </div>
@@ -369,7 +410,7 @@ function App() {
             <button className="modal-close" onClick={() => setComposerOpen(false)} aria-label="Close lane composer"><Icon name="close" size={18} /></button>
             <div className="eyebrow eyebrow--lime">DECLARE BEFORE EDITING</div>
             <h2 id="lane-modal-title">Open a work lane</h2>
-            <p>Describe the concrete code surface your agent expects to change. Runway only makes claims from the scope you declare.</p>
+            <p>Describe the concrete code surface your agent expects to change. Runway only makes claims from the scope you declare, and requires at least one file, symbol, or contract.</p>
             <form onSubmit={addLane} className="lane-form">
               <label>Lane ID<input name="id" placeholder="invoice-guardrail" autoFocus /></label>
               <label>Agent owner<input name="agent" placeholder="Rowan / API" required /></label>

@@ -1,15 +1,16 @@
 {
   "name": "runway-codex-control-tower",
-  "description": "Air-traffic control for parallel Codex agents.",
+  "description": "Pre-edit declared-scope clearance for parallel Codex agents.",
   "private": true,
   "version": "1.0.0",
+  "engines": { "node": ">=20.19.0" },
   "type": "module",
   "scripts": {
     "dev": "vite",
     "build": "vite build",
     "lint": "oxlint",
     "preview": "vite preview",
-    "test": "node --test tests/runway-core.test.mjs tests/runway-cli.test.mjs",
+    "test": "node --test tests/runway-core.test.mjs tests/runway-cli.test.mjs fixtures/parcel-ops/tests/checkout.test.mjs fixtures/parcel-ops/tests/quote.test.mjs fixtures/parcel-ops/tests/tax.test.mjs",
     "runway": "node bin/runway.mjs",
     "package:demo": "vite build --outDir demo",
     "demo": "node bin/demo-server.mjs"

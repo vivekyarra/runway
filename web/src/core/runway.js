@@ -7,18 +7,43 @@ const severityForScore = (score) => {
   return 'low'
 }
 
-const normalize = (value) => String(value ?? '').trim().toLowerCase()
+const normalizeText = (value) => String(value ?? '').trim().toLowerCase()
+const normalizeSymbol = (value) => String(value ?? '').trim()
 
-const cleanList = (values = []) => [...new Set(values.map(normalize).filter(Boolean))]
+export function normalizeFile(value) {
+  const segments = []
+  for (const segment of String(value ?? '').trim().replace(/\\/g, '/').split('/')) {
+    if (!segment || segment === '.') continue
+    if (segment === '..') {
+      if (segments.length && segments[segments.length - 1] !== '..') segments.pop()
+      else segments.push(segment)
+      continue
+    }
+    segments.push(segment)
+  }
+  return segments.join('/')
+}
 
-const overlap = (left = [], right = []) => {
-  const rightSet = new Set(cleanList(right))
-  return cleanList(left).filter((item) => rightSet.has(item))
+const cleanList = (values = [], normalizer = normalizeText) => {
+  const seen = new Set()
+  const list = Array.isArray(values) ? values : []
+  return list
+    .map(normalizer)
+    .filter((item) => {
+      if (!item || seen.has(item)) return false
+      seen.add(item)
+      return true
+    })
+}
+
+const overlap = (left = [], right = [], normalizer = normalizeText) => {
+  const rightSet = new Set(cleanList(right, normalizer))
+  return cleanList(left, normalizer).filter((item) => rightSet.has(item))
 }
 
 const sharedArea = (left = [], right = []) => {
-  const topLevel = (file) => normalize(file).split('/').slice(0, 2).join('/')
-  return overlap(left.map(topLevel), right.map(topLevel))
+  const moduleArea = (file) => normalizeFile(file).split('/').slice(0, 2).join('/')
+  return overlap(left.map(moduleArea), right.map(moduleArea), normalizeFile)
 }
 
 const establishedOwner = (left, right) => {
@@ -36,10 +61,24 @@ const establishedOwner = (left, right) => {
   return [left.id, right.id].sort()[0]
 }
 
+export function hasDeclaredScope(lane = {}) {
+  return Boolean(
+    cleanList(lane.files, normalizeFile).length
+    || cleanList(lane.symbols, normalizeSymbol).length
+    || cleanList(lane.contracts, normalizeText).length,
+  )
+}
+
+export function assertDeclaredScope(lane = {}) {
+  if (!hasDeclaredScope(lane)) {
+    throw new Error('Declare at least one file, exported symbol, or behavioral contract.')
+  }
+}
+
 export function inspectPair(left, right) {
-  const sharedFiles = overlap(left.files, right.files)
-  const sharedSymbols = overlap(left.symbols, right.symbols)
-  const sharedContracts = overlap(left.contracts, right.contracts)
+  const sharedFiles = overlap(left.files, right.files, normalizeFile)
+  const sharedSymbols = overlap(left.symbols, right.symbols, normalizeSymbol)
+  const sharedContracts = overlap(left.contracts, right.contracts, normalizeText)
   const sharedAreas = sharedArea(left.files, right.files)
 
   let score = 0
@@ -70,7 +109,7 @@ export function inspectPair(left, right) {
     severity: severityForScore(score),
     evidence,
     ownerLaneId: establishedOwner(left, right),
-    hasConflict: score >= 30,
+    hasConflict: score > 0,
   }
 }
 
@@ -85,7 +124,7 @@ export function deriveConflicts(lanes = []) {
     }
   }
 
-  return conflicts.sort((a, b) => b.score - a.score)
+  return conflicts.sort((a, b) => b.score - a.score || a.id.localeCompare(b.id))
 }
 
 export function conflictsForLane(laneId, conflicts = []) {
@@ -93,53 +132,112 @@ export function conflictsForLane(laneId, conflicts = []) {
 }
 
 export function laneClearance(lane, conflicts = []) {
+  if (!hasDeclaredScope(lane)) return { state: 'blocked', label: 'Declare scope first', conflict: null }
+
   const own = conflictsForLane(lane.id, conflicts)
-  const mostSevere = own[0]
-  if (!mostSevere) return { state: 'clear', label: 'Cleared for work', conflict: null }
-  if (mostSevere.ownerLaneId === lane.id) {
-    return { state: 'protected', label: 'Protected owner', conflict: mostSevere }
+  if (!own.length) return { state: 'clear', label: 'Cleared for work', conflict: null }
+
+  const blocking = own.find((conflict) => (
+    conflict.ownerLaneId !== lane.id
+    && (conflict.severity === 'critical' || conflict.severity === 'high')
+  ))
+  if (blocking) return { state: 'hold', label: 'Hold for reroute', conflict: blocking }
+
+  const caution = own.find((conflict) => conflict.ownerLaneId !== lane.id)
+  if (caution) return { state: 'caution', label: 'Proceed with caution', conflict: caution }
+
+  return { state: 'protected', label: 'Protected owner', conflict: own[0] }
+}
+
+export function reserveLaneState(lane, conflicts = []) {
+  assertDeclaredScope(lane)
+  if (lane.status !== 'queued') {
+    throw new Error(`Only a queued lane can be reserved; ${lane.id} is ${lane.status}.`)
   }
-  if (mostSevere.severity === 'critical' || mostSevere.severity === 'high') {
-    return { state: 'hold', label: 'Hold for reroute', conflict: mostSevere }
+
+  const clearance = laneClearance(lane, conflicts)
+  if (clearance.state === 'blocked') throw new Error('Declare scope before reserving this lane.')
+  return {
+    status: clearance.state === 'hold' ? 'holding' : 'airborne',
+    clearance,
   }
-  return { state: 'caution', label: 'Proceed with caution', conflict: mostSevere }
+}
+
+export function assertRerouteAllowed(lane) {
+  if (lane.status === 'handoff') {
+    throw new Error(`A handed-off lane cannot be rerouted; open a new lane for follow-up work.`)
+  }
+}
+
+export function assertHandoffAllowed(lane, conflicts = []) {
+  assertDeclaredScope(lane)
+  if (lane.status !== 'airborne') {
+    throw new Error(`Only an airborne lane can create a handoff; ${lane.id} is ${lane.status}.`)
+  }
+
+  const clearance = laneClearance(lane, conflicts)
+  if (clearance.state === 'hold' || clearance.state === 'blocked') {
+    throw new Error('Resolve the hold before creating a handoff.')
+  }
+  return clearance
+}
+
+export function rerouteScope(lane, conflicts = []) {
+  const directEvidence = conflictsForLane(lane.id, conflicts)
+    .flatMap((conflict) => conflict.evidence)
+    .filter((item) => item.kind === 'shared file' || item.kind === 'shared symbol' || item.kind === 'shared contract')
+
+  const sharedFiles = new Set(directEvidence.filter((item) => item.kind === 'shared file').flatMap((item) => item.values.map(normalizeFile)))
+  const sharedSymbols = new Set(directEvidence.filter((item) => item.kind === 'shared symbol').flatMap((item) => item.values.map(normalizeSymbol)))
+  const sharedContracts = new Set(directEvidence.filter((item) => item.kind === 'shared contract').flatMap((item) => item.values.map(normalizeText)))
+
+  return {
+    ...lane,
+    files: lane.files.filter((file) => !sharedFiles.has(normalizeFile(file))),
+    symbols: lane.symbols.filter((symbol) => !sharedSymbols.has(normalizeSymbol(symbol))),
+    contracts: lane.contracts.filter((contract) => !sharedContracts.has(normalizeText(contract))),
+  }
 }
 
 export function runwayMetrics(state) {
   const lanes = state?.lanes ?? []
   const conflicts = deriveConflicts(lanes)
-  const clear = lanes.filter((lane) => laneClearance(lane, conflicts).state === 'clear').length
-  const protectedOwners = lanes.filter((lane) => laneClearance(lane, conflicts).state === 'protected').length
-  const holding = lanes.filter((lane) => laneClearance(lane, conflicts).state === 'hold').length
+  const clearances = lanes.map((lane) => laneClearance(lane, conflicts))
+  const clear = clearances.filter((clearance) => clearance.state === 'clear').length
+  const protectedOwners = clearances.filter((clearance) => clearance.state === 'protected').length
+  const holding = clearances.filter((clearance) => clearance.state === 'hold').length
   const evidenceCount = lanes.reduce((total, lane) => total + (lane.evidence?.length ?? 0), 0)
+  const ready = clear + protectedOwners
 
   return {
     lanes: lanes.length,
     clear,
     protected: protectedOwners,
-    ready: clear + protectedOwners,
+    ready,
     holding,
     conflicts: conflicts.length,
     evidenceCount,
-    confidence: lanes.length ? Math.round((clear / lanes.length) * 100) : 100,
+    confidence: lanes.length ? Math.round((ready / lanes.length) * 100) : 100,
   }
 }
 
 export function createLane(input = {}) {
   const now = new Date().toISOString()
-  return {
-    id: input.id || `lane-${Math.random().toString(36).slice(2, 8)}`,
+  const lane = {
+    id: String(input.id || `lane-${Math.random().toString(36).slice(2, 8)}`).trim(),
     agent: input.agent || 'Unassigned agent',
     task: input.task || 'Untitled work lane',
     status: input.status || 'queued',
-    files: cleanList(input.files),
-    symbols: cleanList(input.symbols),
-    contracts: cleanList(input.contracts),
+    files: cleanList(input.files, normalizeFile),
+    symbols: cleanList(input.symbols, normalizeSymbol),
+    contracts: cleanList(input.contracts, normalizeText),
     evidence: input.evidence ?? [],
     note: input.note || '',
     createdAt: input.createdAt || now,
     updatedAt: now,
   }
+  assertDeclaredScope(lane)
+  return lane
 }
 
 export function buildHandoff(lane, conflicts = []) {
@@ -159,13 +257,15 @@ export function buildHandoff(lane, conflicts = []) {
       : [],
     nextSafeAction: clearance.state === 'hold'
       ? 'Reroute this lane before modifying the shared behavior.'
-      : 'Review the attached evidence, then continue from the declared scope.',
+      : clearance.state === 'blocked'
+        ? 'Declare a bounded scope before continuing.'
+        : 'Review the attached evidence, then continue from the declared scope.',
     generatedAt: new Date().toISOString(),
   }
 }
 
 export function formatList(value = '') {
-  return value
+  return String(value ?? '')
     .split(',')
     .map((item) => item.trim())
     .filter(Boolean)

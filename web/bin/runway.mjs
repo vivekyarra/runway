@@ -1,20 +1,29 @@
 #!/usr/bin/env node
-import { existsSync, mkdirSync, readFileSync, readdirSync, writeFileSync } from 'node:fs'
+import { closeSync, existsSync, mkdirSync, openSync, readFileSync, readdirSync, renameSync, statSync, unlinkSync, writeFileSync } from 'node:fs'
 import { fileURLToPath } from 'node:url'
 import path from 'node:path'
 import process from 'node:process'
 import {
+  assertDeclaredScope,
+  assertHandoffAllowed,
+  assertRerouteAllowed,
   buildHandoff,
   createLane,
   deriveConflicts,
   formatList,
   laneClearance,
+  reserveLaneState,
   runwayMetrics,
 } from '../src/core/runway.js'
 import { createDemoState } from '../src/demo/demoState.js'
 
 const STATE_DIR = '.runway'
 const STATE_FILE = 'state.json'
+const STATE_LOCK_FILE = 'state.lock'
+const STATE_LOCK_TIMEOUT_MS = 5000
+const STATE_LOCK_STALE_MS = 30000
+const STATE_LOCK_RETRY_MS = 25
+const STATE_LOCK_MAX_RETRY_MS = 200
 const SOURCE_EXTENSIONS = new Set(['.js', '.jsx', '.ts', '.tsx', '.mjs', '.cjs'])
 const IGNORED_DIRECTORIES = new Set(['.git', 'node_modules', 'dist', 'coverage', '.runway'])
 
@@ -30,7 +39,7 @@ function parseArgs(args) {
     }
     const key = value.slice(2)
     const next = args[index + 1]
-    if (next && !next.startsWith('--')) {
+    if (next !== undefined && !next.startsWith('--')) {
       options[key] = next
       index += 1
     } else {
@@ -45,8 +54,102 @@ function statePath(root) {
   return path.join(root, STATE_DIR, STATE_FILE)
 }
 
+function lockPath(root) {
+  return path.join(root, STATE_DIR, STATE_LOCK_FILE)
+}
+
 function now() {
   return new Date().toISOString()
+}
+
+function pause(milliseconds) {
+  return new Promise((resolve) => setTimeout(resolve, milliseconds))
+}
+
+function readLockMetadata(target) {
+  try {
+    return JSON.parse(readFileSync(target, 'utf8'))
+  } catch {
+    return null
+  }
+}
+
+function pidIsLive(pid) {
+  if (!Number.isInteger(pid) || pid <= 0) return false
+  try {
+    process.kill(pid, 0)
+    return true
+  } catch (error) {
+    return error?.code === 'EPERM'
+  }
+}
+
+function staleLockCanBeReclaimed(target, metadata) {
+  try {
+    return Date.now() - statSync(target).mtimeMs > STATE_LOCK_STALE_MS && !pidIsLive(metadata?.pid)
+  } catch {
+    return false
+  }
+}
+
+async function acquireStateLock(root) {
+  const directory = path.dirname(statePath(root))
+  const target = lockPath(root)
+  const token = `${process.pid}-${Date.now()}-${Math.random().toString(36).slice(2, 10)}`
+  const deadline = Date.now() + STATE_LOCK_TIMEOUT_MS
+  let retryMs = STATE_LOCK_RETRY_MS
+
+  mkdirSync(directory, { recursive: true })
+
+  while (true) {
+    let descriptor
+    try {
+      descriptor = openSync(target, 'wx')
+      writeFileSync(descriptor, `${JSON.stringify({ pid: process.pid, createdAt: now(), token })}\n`, 'utf8')
+      closeSync(descriptor)
+      descriptor = undefined
+
+      return () => {
+        const current = readLockMetadata(target)
+        if (current?.token === token) {
+          try {
+            unlinkSync(target)
+          } catch (error) {
+            if (error?.code !== 'ENOENT') throw error
+          }
+        }
+      }
+    } catch (error) {
+      if (descriptor !== undefined) closeSync(descriptor)
+      const lockExists = error?.code === 'EEXIST' || (error?.code === 'EPERM' && existsSync(target))
+      if (!lockExists) throw error
+
+      const metadata = readLockMetadata(target)
+      if (staleLockCanBeReclaimed(target, metadata)) {
+        try {
+          unlinkSync(target)
+        } catch (unlinkError) {
+          if (unlinkError?.code !== 'ENOENT') throw unlinkError
+        }
+        continue
+      }
+
+      if (Date.now() >= deadline) {
+        throw new Error('Runway state is busy. Another local agent is updating it; retry shortly.')
+      }
+      await pause(retryMs)
+      retryMs = Math.min(retryMs * 2, STATE_LOCK_MAX_RETRY_MS)
+    }
+  }
+}
+
+async function withStateLock(root, mutate) {
+  const release = await acquireStateLock(root)
+  try {
+    return await mutate()
+  } finally {
+    release()
+  }
 }
 
 function emptyState(root) {
@@ -72,8 +175,15 @@ export function loadState(root) {
 
 export function saveState(root, state) {
   const directory = path.dirname(statePath(root))
+  const target = statePath(root)
+  const temporary = path.join(directory, `.${STATE_FILE}.${process.pid}.${Date.now()}.${Math.random().toString(36).slice(2, 10)}.tmp`)
   mkdirSync(directory, { recursive: true })
-  writeFileSync(statePath(root), `${JSON.stringify(state, null, 2)}\n`, 'utf8')
+  try {
+    writeFileSync(temporary, `${JSON.stringify(state, null, 2)}\n`, 'utf8')
+    renameSync(temporary, target)
+  } finally {
+    if (existsSync(temporary)) unlinkSync(temporary)
+  }
 }
 
 function addActivity(state, type, lane, text) {
@@ -135,6 +245,12 @@ function requireOption(options, key) {
   return options[key]
 }
 
+function optionalListOption(options, key) {
+  if (!Object.hasOwn(options, key)) return undefined
+  if (options[key] === true) throw new Error(`Missing value for --${key}`)
+  return formatList(options[key])
+}
+
 function resolveRoot(options) {
   return path.resolve(options.root && options.root !== true ? options.root : process.cwd())
 }
@@ -145,35 +261,40 @@ Runway - local air traffic control for coding agents
 
 Usage:
   node bin/runway.mjs init --root <repo> [--demo]
-  node bin/runway.mjs scan --root <repo>
+  node bin/runway.mjs scan --root <repo> [--write]
   node bin/runway.mjs status --root <repo>
   node bin/runway.mjs lane create --root <repo> --id <lane> --agent <owner> --task <text> [--files a,b] [--symbols a,b] [--contracts a,b]
   node bin/runway.mjs lane reserve --root <repo> --id <lane>
   node bin/runway.mjs lane reroute --root <repo> --id <lane> [--files a,b] [--symbols a,b] [--contracts a,b]
   node bin/runway.mjs lane handoff --root <repo> --id <lane> --evidence <command> [--result passing] [--note <text>]
 
-Runway is intentionally heuristic: it reports declared and scanned overlap; it does not guarantee a conflict-free merge.
+Runway is intentionally heuristic: clearance compares declared lane scope. Scan inventories common named JS/TS exports, imports, and routes separately; neither guarantees a conflict-free merge.
 `)
 }
 
-function commandInit(options) {
+async function commandInit(options) {
   const root = resolveRoot(options)
-  const state = options.demo ? createDemoState() : emptyState(root)
-  state.repo = { ...state.repo, root, name: path.basename(root) }
-  addActivity(state, 'init', 'control', options.demo ? 'Initialized a bundled Runway demonstration.' : 'Initialized Runway control state.')
-  saveState(root, state)
-  print({ ok: true, state: statePath(root), lanes: state.lanes.length })
+  return withStateLock(root, () => {
+    const state = options.demo ? createDemoState() : emptyState(root)
+    state.repo = { ...state.repo, root, name: path.basename(root) }
+    addActivity(state, 'init', 'control', options.demo ? 'Initialized a bundled Runway demonstration.' : 'Initialized Runway control state.')
+    saveState(root, state)
+    print({ ok: true, state: statePath(root), lanes: state.lanes.length })
+  })
 }
 
-function commandScan(options) {
+async function commandScan(options) {
   const root = resolveRoot(options)
   const scan = scanWorkspace(root)
   if (options.write) {
-    const state = loadState(root)
-    state.repo = { ...state.repo, root, lastScan: scan.scannedAt }
-    state.scan = scan
-    addActivity(state, 'scan', 'control', `Scanned ${scan.files.length} JavaScript/TypeScript files.`)
-    saveState(root, state)
+    return withStateLock(root, () => {
+      const state = loadState(root)
+      state.repo = { ...state.repo, root, lastScan: scan.scannedAt }
+      state.scan = scan
+      addActivity(state, 'scan', 'control', `Scanned ${scan.files.length} JavaScript/TypeScript files.`)
+      saveState(root, state)
+      print(scan)
+    })
   }
   print(scan)
 }
@@ -196,73 +317,81 @@ function commandStatus(options) {
   })
 }
 
-function commandLane(action, options) {
+async function commandLane(action, options) {
   const root = resolveRoot(options)
-  const state = loadState(root)
+  return withStateLock(root, () => {
+    const state = loadState(root)
 
-  if (action === 'create') {
-    const lane = createLane({
-      id: requireOption(options, 'id'),
-      agent: requireOption(options, 'agent'),
-      task: requireOption(options, 'task'),
-      files: formatList(options.files || ''),
-      symbols: formatList(options.symbols || ''),
-      contracts: formatList(options.contracts || ''),
-    })
-    if (state.lanes.some((existing) => existing.id === lane.id)) throw new Error(`Lane already exists: ${lane.id}`)
-    state.lanes.push(lane)
-    addActivity(state, 'reserve', lane.id, `${lane.agent} declared ${lane.id}.`)
-    saveState(root, state)
+    if (action === 'create') {
+      const lane = createLane({
+        id: requireOption(options, 'id'),
+        agent: requireOption(options, 'agent'),
+        task: requireOption(options, 'task'),
+        files: optionalListOption(options, 'files') ?? [],
+        symbols: optionalListOption(options, 'symbols') ?? [],
+        contracts: optionalListOption(options, 'contracts') ?? [],
+      })
+      if (state.lanes.some((existing) => existing.id === lane.id)) throw new Error(`Lane already exists: ${lane.id}`)
+      state.lanes.push(lane)
+      addActivity(state, 'reserve', lane.id, `${lane.agent} declared ${lane.id}.`)
+      saveState(root, state)
+      const conflicts = deriveConflicts(state.lanes)
+      print({ ok: true, lane, clearance: laneClearance(lane, conflicts), conflicts: conflicts.filter((item) => item.laneIds.includes(lane.id)) })
+      return
+    }
+
+    const laneId = requireOption(options, 'id')
+    const lane = state.lanes.find((item) => item.id === laneId)
+    if (!lane) throw new Error(`Unknown lane: ${laneId}`)
     const conflicts = deriveConflicts(state.lanes)
-    print({ ok: true, lane, clearance: laneClearance(lane, conflicts), conflicts: conflicts.filter((item) => item.laneIds.includes(lane.id)) })
-    return
-  }
 
-  const laneId = requireOption(options, 'id')
-  const lane = state.lanes.find((item) => item.id === laneId)
-  if (!lane) throw new Error(`Unknown lane: ${laneId}`)
-  const conflicts = deriveConflicts(state.lanes)
+    if (action === 'reserve') {
+      const reservation = reserveLaneState(lane, conflicts)
+      lane.status = reservation.status
+      lane.updatedAt = now()
+      addActivity(state, lane.status === 'holding' ? 'hold' : 'launch', lane.id, `${lane.agent} ${lane.status === 'holding' ? 'was held for a collision' : 'received clearance'}.`)
+      saveState(root, state)
+      print({ ok: true, lane, clearance: reservation.clearance })
+      return
+    }
 
-  if (action === 'reserve') {
-    const clearance = laneClearance(lane, conflicts)
-    lane.status = clearance.state === 'hold' ? 'holding' : 'airborne'
-    lane.updatedAt = now()
-    addActivity(state, lane.status === 'holding' ? 'hold' : 'launch', lane.id, `${lane.agent} ${lane.status === 'holding' ? 'was held for a collision' : 'received clearance'}.`)
-    saveState(root, state)
-    print({ ok: true, lane, clearance })
-    return
-  }
+    if (action === 'reroute') {
+      assertRerouteAllowed(lane)
+      const files = optionalListOption(options, 'files')
+      const symbols = optionalListOption(options, 'symbols')
+      const contracts = optionalListOption(options, 'contracts')
+      if (files !== undefined) lane.files = files
+      if (symbols !== undefined) lane.symbols = symbols
+      if (contracts !== undefined) lane.contracts = contracts
+      assertDeclaredScope(lane)
+      lane.status = 'queued'
+      lane.updatedAt = now()
+      addActivity(state, 'reroute', lane.id, `${lane.agent} declared a new scope.`)
+      saveState(root, state)
+      const nextConflicts = deriveConflicts(state.lanes)
+      print({ ok: true, lane, clearance: laneClearance(lane, nextConflicts), conflicts: nextConflicts.filter((item) => item.laneIds.includes(lane.id)) })
+      return
+    }
 
-  if (action === 'reroute') {
-    if (options.files) lane.files = formatList(options.files)
-    if (options.symbols) lane.symbols = formatList(options.symbols)
-    if (options.contracts) lane.contracts = formatList(options.contracts)
-    lane.status = 'queued'
-    lane.updatedAt = now()
-    addActivity(state, 'reroute', lane.id, `${lane.agent} declared a new scope.`)
-    saveState(root, state)
-    const nextConflicts = deriveConflicts(state.lanes)
-    print({ ok: true, lane, clearance: laneClearance(lane, nextConflicts), conflicts: nextConflicts.filter((item) => item.laneIds.includes(lane.id)) })
-    return
-  }
+    if (action === 'handoff') {
+      assertHandoffAllowed(lane, conflicts)
+      lane.evidence = [...(lane.evidence ?? []), {
+        command: requireOption(options, 'evidence'),
+        result: options.result || 'recorded',
+        at: now(),
+      }]
+      if (options.note && options.note !== true) lane.note = options.note
+      lane.status = 'handoff'
+      lane.updatedAt = now()
+      lane.handoff = buildHandoff(lane, conflicts)
+      addActivity(state, 'evidence', lane.id, `${lane.agent} created a handoff with evidence.`)
+      saveState(root, state)
+      print({ ok: true, handoff: lane.handoff, state: statePath(root) })
+      return
+    }
 
-  if (action === 'handoff') {
-    lane.evidence = [...(lane.evidence ?? []), {
-      command: requireOption(options, 'evidence'),
-      result: options.result || 'recorded',
-      at: now(),
-    }]
-    if (options.note && options.note !== true) lane.note = options.note
-    lane.status = 'handoff'
-    lane.updatedAt = now()
-    lane.handoff = buildHandoff(lane, conflicts)
-    addActivity(state, 'evidence', lane.id, `${lane.agent} created a handoff with evidence.`)
-    saveState(root, state)
-    print({ ok: true, handoff: lane.handoff, state: statePath(root) })
-    return
-  }
-
-  throw new Error(`Unknown lane action: ${action}`)
+    throw new Error(`Unknown lane action: ${action}`)
+  })
 }
 
 export async function main(args = process.argv.slice(2)) {
