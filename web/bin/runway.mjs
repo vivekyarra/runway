@@ -1,6 +1,7 @@
 #!/usr/bin/env node
 import { closeSync, existsSync, mkdirSync, openSync, readFileSync, readdirSync, renameSync, statSync, unlinkSync, writeFileSync } from 'node:fs'
 import { execFileSync } from 'node:child_process'
+import { createHash } from 'node:crypto'
 import { fileURLToPath } from 'node:url'
 import path from 'node:path'
 import process from 'node:process'
@@ -18,6 +19,7 @@ import {
   runwayMetrics,
   scopeGrounding,
 } from '../src/core/runway.js'
+import { buildCollisionReplay, changedSymbolsFromPatch } from '../src/core/replay.js'
 import { createDemoState } from '../src/demo/demoState.js'
 
 const STATE_DIR = '.runway'
@@ -266,6 +268,60 @@ function gitPaths(root, args) {
   return output.split(/\r?\n/).map((item) => item.trim()).filter(Boolean)
 }
 
+function gitText(root, args) {
+  return execFileSync('git', ['-C', root, '-c', 'core.quotepath=false', ...args], {
+    encoding: 'utf8',
+    maxBuffer: 16 * 1024 * 1024,
+    stdio: ['ignore', 'pipe', 'pipe'],
+  })
+}
+
+function parseGitRange(value, option) {
+  const range = requireOption({ [option]: value }, option)
+  const parts = range.split('..')
+  if (parts.length !== 2 || !parts[0] || !parts[1]) {
+    throw new Error(`--${option} must use the form <base>..<head>.`)
+  }
+  return { range, baseRef: parts[0], headRef: parts[1] }
+}
+
+function resolveCommit(root, reference) {
+  try {
+    return gitText(root, ['rev-parse', '--verify', '--end-of-options', `${reference}^{commit}`]).trim()
+  } catch {
+    throw new Error(`Cannot resolve Git commit: ${reference}`)
+  }
+}
+
+function replayChange(root, rangeOption, label, task) {
+  const parsed = parseGitRange(rangeOption.value, rangeOption.name)
+  const baseSha = resolveCommit(root, parsed.baseRef)
+  const headSha = resolveCommit(root, parsed.headRef)
+  const resolvedRange = `${baseSha}..${headSha}`
+  const changedFiles = gitPaths(root, ['diff', '--name-only', '--relative', '--no-renames', resolvedRange, '--'])
+    .map((item) => item.replace(/\\/g, '/'))
+  const sourceFiles = changedFiles.filter((file) => SOURCE_EXTENSIONS.has(path.extname(file).toLowerCase()))
+  const patch = sourceFiles.length
+    ? gitText(root, ['diff', '--unified=0', '--no-ext-diff', '--no-renames', resolvedRange, '--', ...sourceFiles])
+    : ''
+
+  return {
+    label,
+    task,
+    range: parsed.range,
+    baseRef: parsed.baseRef,
+    headRef: parsed.headRef,
+    baseSha,
+    headSha,
+    changedFiles,
+    changedSymbols: changedSymbolsFromPatch(patch),
+  }
+}
+
+function sha256(value) {
+  return createHash('sha256').update(value).digest('hex')
+}
+
 export function changedGitFiles(root) {
   try {
     gitPaths(root, ['rev-parse', '--is-inside-work-tree'])
@@ -291,6 +347,7 @@ Usage:
   node bin/runway.mjs init --root <repo> [--demo]
   node bin/runway.mjs scan --root <repo> [--write]
   node bin/runway.mjs status --root <repo>
+  node bin/runway.mjs replay --root <repo> --left <base>..<head> --right <base>..<head> [--left-label <text>] [--right-label <text>] [--source-url <url>] [--out <file>]
   node bin/runway.mjs lane create --root <repo> --id <lane> --agent <owner> --task <text> [--files a,b] [--symbols a,b] [--contracts a,b]
   node bin/runway.mjs lane reserve --root <repo> --id <lane>
   node bin/runway.mjs lane reroute --root <repo> --id <lane> [--files a,b] [--symbols a,b] [--contracts a,b]
@@ -299,6 +356,50 @@ Usage:
 
   Runway is intentionally advisory: clearance compares declared lane scope, and audit checks the current Git changed-file set before handoff. It does not prevent writes, infer intent, or guarantee a conflict-free merge.
 `)
+}
+
+function commandReplay(options) {
+  const root = resolveRoot(options)
+  try {
+    gitPaths(root, ['rev-parse', '--is-inside-work-tree'])
+  } catch {
+    throw new Error('Collision replay requires a Git repository.')
+  }
+
+  const left = replayChange(
+    root,
+    { name: 'left', value: options.left },
+    options['left-label'] && options['left-label'] !== true ? options['left-label'] : 'Earlier lane',
+    options['left-task'] && options['left-task'] !== true ? options['left-task'] : undefined,
+  )
+  const right = replayChange(
+    root,
+    { name: 'right', value: options.right },
+    options['right-label'] && options['right-label'] !== true ? options['right-label'] : 'Later lane',
+    options['right-task'] && options['right-task'] !== true ? options['right-task'] : undefined,
+  )
+  let remote = null
+  try {
+    remote = gitText(root, ['config', '--get', 'remote.origin.url']).trim() || null
+  } catch {
+    remote = null
+  }
+  const replay = buildCollisionReplay({
+    source: {
+      repository: options['source-url'] && options['source-url'] !== true ? options['source-url'] : remote,
+    },
+    left,
+    right,
+  })
+  replay.artifactSha256 = sha256(JSON.stringify(replay))
+
+  if (options.out) {
+    const output = path.resolve(requireOption(options, 'out'))
+    mkdirSync(path.dirname(output), { recursive: true })
+    writeFileSync(output, `${JSON.stringify(replay, null, 2)}\n`, 'utf8')
+    replay.output = output
+  }
+  print(replay)
 }
 
 async function commandInit(options) {
@@ -457,6 +558,7 @@ export async function main(args = process.argv.slice(2)) {
   if (command === 'init') return commandInit(options)
   if (command === 'scan') return commandScan(options)
   if (command === 'status') return commandStatus(options)
+  if (command === 'replay') return commandReplay(options)
   if (command === 'lane') return commandLane(action, options)
   throw new Error(`Unknown command: ${command}`)
 }

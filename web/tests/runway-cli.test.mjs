@@ -190,6 +190,70 @@ test('CLI persists scan grounding and returns dependency-based clearance evidenc
   }
 })
 
+test('CLI reconstructs a provenance-backed collision from two Git ranges', () => {
+  const root = makeRoot()
+  try {
+    mkdirSync(path.join(root, 'src'), { recursive: true })
+    writeFileSync(path.join(root, 'src', 'quote.js'), 'export function quoteTotal() { return 1 }\n')
+    initGit(root)
+    execFileSync('git', ['add', '.'], { cwd: root })
+    execFileSync('git', ['commit', '-m', 'base'], { cwd: root, stdio: 'ignore' })
+    const base = execFileSync('git', ['rev-parse', 'HEAD'], { cwd: root, encoding: 'utf8' }).trim()
+
+    execFileSync('git', ['checkout', '-b', 'left'], { cwd: root, stdio: 'ignore' })
+    writeFileSync(path.join(root, 'src', 'quote.js'), 'export function quoteTotal() { return 2 }\nexport function leftOnly() { return true }\n')
+    execFileSync('git', ['add', '.'], { cwd: root })
+    execFileSync('git', ['commit', '-m', 'left change'], { cwd: root, stdio: 'ignore' })
+    const left = execFileSync('git', ['rev-parse', 'HEAD'], { cwd: root, encoding: 'utf8' }).trim()
+
+    execFileSync('git', ['checkout', '-b', 'right', base], { cwd: root, stdio: 'ignore' })
+    writeFileSync(path.join(root, 'src', 'quote.js'), 'export function quoteTotal() { return 3 }\nexport function rightOnly() { return true }\n')
+    execFileSync('git', ['add', '.'], { cwd: root })
+    execFileSync('git', ['commit', '-m', 'right change'], { cwd: root, stdio: 'ignore' })
+    const right = execFileSync('git', ['rev-parse', 'HEAD'], { cwd: root, encoding: 'utf8' }).trim()
+    const output = path.join(root, 'collision-replay.json')
+
+    const replay = run(
+      root,
+      'replay', '--root', root,
+      '--left', `${base}..${left}`, '--left-label', 'PR alpha',
+      '--right', `${base}..${right}`, '--right-label', 'PR beta',
+      '--source-url', 'https://example.test/repo',
+      '--out', output,
+    )
+
+    assert.equal(replay.kind, 'runway-collision-replay')
+    assert.equal(replay.mode, 'counterfactual')
+    assert.equal(replay.verdict.state, 'would-hold')
+    assert.equal(replay.verdict.ownerLane, 'PR alpha')
+    assert.deepEqual(replay.evidence.find((item) => item.kind === 'shared file').values, ['src/quote.js'])
+    assert.deepEqual(replay.evidence.find((item) => item.kind === 'shared symbol').values, ['quoteTotal'])
+    assert.equal(replay.lanes[0].baseSha, base)
+    assert.equal(replay.lanes[1].headSha, right)
+    assert.match(replay.artifactSha256, /^[a-f0-9]{64}$/)
+    assert.equal(existsSync(output), true)
+  } finally {
+    removeRoot(root)
+  }
+})
+
+test('CLI collision replay rejects malformed and unresolved Git ranges', () => {
+  const root = makeRoot()
+  try {
+    initGit(root)
+    assert.throws(
+      () => run(root, 'replay', '--root', root, '--left', 'main', '--right', 'main..other'),
+      /--left must use the form <base>..<head>/,
+    )
+    assert.throws(
+      () => run(root, 'replay', '--root', root, '--left', 'missing..other', '--right', 'main..other'),
+      /Cannot resolve Git commit: missing/,
+    )
+  } finally {
+    removeRoot(root)
+  }
+})
+
 test('CLI serializes concurrent lane creation and leaves valid complete state', async () => {
   const root = makeRoot()
   try {
