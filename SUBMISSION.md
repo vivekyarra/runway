@@ -147,6 +147,7 @@ Do not say: universal semantic analysis, autonomous intent detection, distribute
 
 ## Final account-bound checklist
 
+- [ ] Click **Start project** on the registered OpenAI Build Week Devpost account; the 2026-07-19 read-only check showed no accessible project draft yet.
 - [ ] Confirm `https://github.com/vivekyarra/runway` is public and the default branch contains the final static demo, README, license, tests, and submission kit.
 - [ ] Run every command in the README from a clean clone.
 - [ ] Record, trim, upload, and publish the audible YouTube video under three minutes.
