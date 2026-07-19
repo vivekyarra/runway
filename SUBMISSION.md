@@ -14,7 +14,7 @@ Final copy-and-record handoff for OpenAI Build Week. Track: **Developer Tools**.
 
 **Codex plugin install:** `codex plugin marketplace add vivekyarra/runway --ref main`, then `codex plugin add runway@runway-marketplace`
 
-**Final video file:** `submission/video/runway-build-week-demo.mp4` (2:31.8, 1280x800, H.264/AAC, audible, one-line captioned)
+**Final video file:** local upload artifact `submission/video/runway-build-week-demo.mp4` (2:31.8, 1280x720, H.264/AAC, audible, no captions; intentionally excluded from Git)
 
 **Verification workflow:** https://github.com/vivekyarra/runway/actions/workflows/pages.yml
 
@@ -94,13 +94,13 @@ Next steps are coverage for additional trusted write surfaces, opt-in language a
 | Criterion | Judge-visible proof | Verifiable artifact |
 |---|---|---|
 | Technical implementation (25%) | Installable Codex plugin, native patch guard, exact-ref replay, executed proof, post-command Git audit, concurrent state protocol | `.agents/plugins/plugins/runway`, `web/bin/runway.mjs`, 39 tests |
-| Design (25%) | Real incident first; exact refs on demand; one guided prevention path; hold versus caution is legible | Hosted no-rebuild dashboard, captioned 2:31 demo, and three submission images |
+| Design (25%) | Real incident first; exact refs on demand; one guided prevention path; hold versus caution is legible | Hosted no-rebuild dashboard, live 2:31 demo, and three submission images |
 | Potential impact (25%) | Human public history proves the failure shape; official Codex guidance names agent conflict risk; Runway demonstrates a native before-edit intervention and after-edit backstop | Evidence boundary, live Pricing/Tax scope contract, denied patch, and verified receipt |
 | Quality of idea (25%) | The loop acts before, during, and after implementation instead of waiting for merge | Replay -> Declare -> Reserve -> Guard patch -> Run proof -> Audit -> Receipt |
 
 ## Final public video - 2:31.8
 
-The checked-in MP4 is 1280x800 H.264/AAC with audible ElevenLabs narration. It preserves the complete uncropped 1280x720 live browser or terminal capture and adds a dedicated 80-pixel rail below it. Every burned-in English caption is one centered movie-style line inside that rail, never over the product. The exact live captures, capture scripts, transcript, SRT, thumbnail, upload copy, and reproducible ffmpeg build are in `submission/video/`. The timing below follows the final render; keep any uploaded version unchanged and under three minutes.
+The local upload MP4 is 1280x720 H.264/AAC with audible ElevenLabs narration and no subtitles or burned-in captions. It preserves the complete uncropped live browser or terminal capture. Large media and production sources are intentionally excluded from Git; `submission/video/README.md` records the upload handoff. The timing below follows the final render; keep any uploaded version unchanged and under three minutes.
 
 ### Prepare the CLI segment
 
@@ -184,7 +184,7 @@ Hold on the deterministic-runtime disclosure, then finish on the Runway end card
 ## Capture checklist
 
 - The final render uses isolated live browser and terminal captures, not a screenshot slideshow. The visible cursor hovers real controls, clicks the guided flow, and selects on-page evidence.
-- Preserve the complete 1280x720 content frame. Captions belong only in the separate bottom rail, on one line per cue.
+- Preserve the complete 1280x720 content frame and do not add captions unless they are transcribed verbatim from the final voice-over.
 - Use `docs/runway-judge-demo.png` as the first image and `docs/runway-real-replay.png` as the second.
 - Use `docs/runway-cli-proof.png` as the third image; it must show the native patch denial and the post-command drift block.
 - Keep exact source URLs, commit refs, overlap evidence, and disclosure readable.
@@ -207,7 +207,7 @@ Do not say: the historical contributors were agents, agent collisions are proven
 - [ ] Start or open the project on the registered OpenAI Build Week Devpost account.
 - [ ] Confirm the public repository contains the final demo, README, license, tests, replay notice, and submission kit.
 - [ ] Run the README path from a clean clone.
-- [x] Render and inspect the audible, captioned video under three minutes.
+- [x] Render and inspect the audible, caption-free video under three minutes.
 - [ ] Upload `submission/video/runway-build-week-demo.mp4` to YouTube and publish it publicly.
 - [ ] Verify YouTube, repository, and live demo while signed out.
 - [ ] Paste the public video URL into Devpost.

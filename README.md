@@ -8,7 +8,7 @@ The evidence stays honest. One public ESLint issue produced three independent **
 
 Runway is an OpenAI Build Week **Developer Tools** project.
 
-[**Open the live judge demo**](https://vivekyarra.github.io/runway/) | [Watch the 2:32 captioned demo](submission/video/runway-build-week-demo.mp4) | [Inspect the replay artifact](docs/replays/eslint-20014.json) | [See deployment verification](https://github.com/vivekyarra/runway/actions/workflows/pages.yml)
+[**Open the live judge demo**](https://vivekyarra.github.io/runway/) | [Inspect the replay artifact](docs/replays/eslint-20014.json) | [See deployment verification](https://github.com/vivekyarra/runway/actions/workflows/pages.yml)
 
 ![Runway opens with a real duplicate-work incident from public Git history](docs/runway-judge-demo.png)
 

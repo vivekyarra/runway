@@ -156,3 +156,9 @@
 - Captured a dedicated live terminal take from actual hook and CLI executions: an out-of-lane patch is denied, the declared file passes, a passing test plus undeclared Git drift refuses handoff, removing only that drift creates a verified receipt, the replay fingerprint verifies, and the complete suite reports 39 passing tests.
 - Rebuilt the 2:31.8 final as 1280x800 H.264/AAC. Each full 1280x720 capture remains uncropped; a dedicated 80-pixel bottom rail holds exactly one centered caption line per cue so captions never cover product or terminal evidence.
 - Inspected frames across the full sequence after retiming the bounded terminal segments. The narration now lands on the matching deny, drift, clean receipt, install, regression result, and live UI states without fabricating command output.
+
+## 2026-07-19 - caption removal and repository cleanup
+
+- Removed the non-verbatim burned-in subtitles instead of presenting summarized captions as an exact transcript. The final local upload artifact is now an uncropped 1280x720 H.264/AAC video with the original voice-over and no subtitle stream or caption rail.
+- Removed the raw browser and terminal captures, narration audio, render scripts, storyboard frames, SRT, and final MP4 from Git tracking. The final MP4 and upload thumbnail remain local and ignored for account-bound YouTube upload; only lightweight upload instructions remain in the repository.
+- Removed the recording-only cursor automation from the shipped React source after capture so the public product contains only runtime functionality required by the project.

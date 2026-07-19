@@ -6,3 +6,7 @@ dist/
 .runway/
 coverage/
 *.log
+
+# Local upload artifacts. Keep only the lightweight handoff instructions in Git.
+submission/video/*
+!submission/video/README.md
