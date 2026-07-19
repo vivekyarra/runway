@@ -1,0 +1,6 @@
+interface:
+  display_name: "Runway"
+  short_description: "Guard parallel Codex work with declared scope."
+  default_prompt: "Use $runway to declare and reserve a bounded lane before editing this repository."
+policy:
+  allow_implicit_invocation: true

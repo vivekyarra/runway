@@ -1,0 +1,19 @@
+{
+  "description": "Runway blocks direct Codex patch edits that fall outside the active reserved lane.",
+  "hooks": {
+    "PreToolUse": [
+      {
+        "matcher": "^(apply_patch|Edit|Write)$",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "node \"$PLUGIN_ROOT/hooks/pre_tool_use_guard.mjs\"",
+            "commandWindows": "node \"$env:PLUGIN_ROOT\\hooks\\pre_tool_use_guard.mjs\"",
+            "timeout": 10,
+            "statusMessage": "Checking the active Runway lane"
+          }
+        ]
+      }
+    ]
+  }
+}

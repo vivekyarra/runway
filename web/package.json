@@ -12,7 +12,7 @@
     "build": "vite build",
     "lint": "oxlint",
     "preview": "vite preview",
-    "test": "node --test tests/runway-core.test.mjs tests/runway-cli.test.mjs fixtures/parcel-ops/tests/checkout.test.mjs fixtures/parcel-ops/tests/quote.test.mjs fixtures/parcel-ops/tests/tax.test.mjs",
+    "test": "node --test tests/runway-core.test.mjs tests/runway-cli.test.mjs tests/runway-hook.test.mjs fixtures/parcel-ops/tests/checkout.test.mjs fixtures/parcel-ops/tests/quote.test.mjs fixtures/parcel-ops/tests/tax.test.mjs",
     "runway": "node bin/runway.mjs",
     "package:demo": "vite build --outDir demo",
     "demo": "node bin/demo-server.mjs"

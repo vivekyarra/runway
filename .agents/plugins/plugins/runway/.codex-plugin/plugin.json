@@ -1,0 +1,24 @@
+{
+  "name": "runway",
+  "version": "1.2.0",
+  "description": "Coordinate parallel Codex agents with pre-edit scope clearance, a bounded patch guard, executed verification, and Git-audited handoffs.",
+  "author": {
+    "name": "Vivek Yarra",
+    "url": "https://github.com/vivekyarra"
+  },
+  "homepage": "https://vivekyarra.github.io/runway/",
+  "repository": "https://github.com/vivekyarra/runway",
+  "license": "MIT",
+  "keywords": ["codex", "multi-agent", "developer-tools", "scope-guard", "handoff"],
+  "skills": "./skills/",
+  "interface": {
+    "displayName": "Runway",
+    "shortDescription": "Stop overlapping Codex work before edits begin.",
+    "longDescription": "Runway declares file, symbol, and behavioral scope before work; blocks out-of-lane Codex patch calls; and requires executed proof plus a fresh Git audit before handoff.",
+    "developerName": "Vivek Yarra",
+    "category": "Developer Tools",
+    "capabilities": ["Skill", "PreToolUse guard", "Local CLI"],
+    "websiteURL": "https://vivekyarra.github.io/runway/",
+    "defaultPrompt": "Use $runway to declare and reserve a bounded lane before editing this repository."
+  }
+}

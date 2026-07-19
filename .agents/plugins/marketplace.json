@@ -1,0 +1,20 @@
+{
+  "name": "runway-marketplace",
+  "interface": {
+    "displayName": "Runway Marketplace"
+  },
+  "plugins": [
+    {
+      "name": "runway",
+      "source": {
+        "source": "local",
+        "path": "./plugins/runway"
+      },
+      "policy": {
+        "installation": "AVAILABLE",
+        "authentication": "ON_INSTALL"
+      },
+      "category": "Developer Tools"
+    }
+  ]
+}
