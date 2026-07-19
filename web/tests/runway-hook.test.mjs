@@ -135,6 +135,21 @@ test('installed plugin contains an exact standalone copy of the verified CLI cor
   }
 })
 
+test('repository marketplace, plugin manifest, and hook configuration stay installable', () => {
+  const marketplace = JSON.parse(readFileSync(path.join(repositoryRoot, '.agents', 'plugins', 'marketplace.json'), 'utf8'))
+  const manifest = JSON.parse(readFileSync(path.join(pluginRoot, '.codex-plugin', 'plugin.json'), 'utf8'))
+  const hooks = JSON.parse(readFileSync(path.join(pluginRoot, 'hooks', 'hooks.json'), 'utf8'))
+  assert.equal(marketplace.name, 'runway-marketplace')
+  assert.equal(marketplace.plugins[0].name, 'runway')
+  assert.equal(marketplace.plugins[0].source.path, './plugins/runway')
+  assert.equal(manifest.name, 'runway')
+  assert.equal(manifest.skills, './skills/')
+  assert.equal(manifest.license, 'MIT')
+  assert.equal(hooks.hooks.PreToolUse[0].matcher, '^(apply_patch|Edit|Write)$')
+  assert.match(hooks.hooks.PreToolUse[0].hooks[0].command, /PLUGIN_ROOT/)
+  assert.match(hooks.hooks.PreToolUse[0].hooks[0].commandWindows, /PLUGIN_ROOT/)
+})
+
 test('bundled plugin CLI initializes, declares, and reserves a lane without the web project', () => {
   const root = mkdtempSync(path.join(tmpdir(), 'runway-plugin-cli-'))
   try {

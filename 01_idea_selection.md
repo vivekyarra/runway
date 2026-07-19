@@ -24,10 +24,10 @@ The shorter hook is: **Replay duplicate work. Stop the next collision.**
 
 | Criterion | Checkable evidence | Remaining limitation |
 |---|---|---|
-| Technical implementation | Exact-ref Git replay; shared deterministic core; dependency-free CLI; Runway-executed proof; post-command Git audit; local writer lock and atomic replacement; 30 passing tests | Scanner and replay declaration extraction are pattern-based rather than compiler-grade; state protocol is local, not distributed |
+| Technical implementation | Installable Codex plugin; trusted `PreToolUse` patch guard; exact-ref Git replay; shared deterministic core; dependency-free CLI; executed proof; post-command Git audit; local writer lock and atomic replacement; 39 passing tests | Hook coverage is bounded to supported Codex patch tools; scanner and replay extraction are pattern-based; state protocol is local, not distributed |
 | Design | Public no-rebuild demo opens with a real replay, keeps exact refs on demand, then shows a legible hold -> reroute -> reserve -> audit -> receipt path | Browser uses labeled fixture records and does not execute Git or tests |
 | Potential impact | Human-authored public history proves the failure shape; official Codex guidance separately identifies conflicts and coordination overhead in parallel write-heavy agent workflows; the live protocol demonstrates the intervention | No agent-collision prevalence, production telemetry, or adoption study is claimed |
-| Quality of idea | One loop connects historical collision proof, pre-edit scope clearance, executed verification, and post-command Git conformance | The replay is counterfactual and JS/TS-focused; adjacent agent-lane products still exist |
+| Quality of idea | One loop connects historical proof, pre-edit clearance, native patch denial, executed verification, and post-command Git conformance | The replay is counterfactual and JS/TS-focused; shell, MCP, editor, and external writes still rely on the audit backstop |
 
 ## Product correction after adversarial review
 
@@ -43,7 +43,7 @@ The third change narrows rather than hides the remaining weakness. The audit cat
 
 General agent control planes route agents and tasks. Runway connects a different loop: **prove duplicate implementation from source history, then install a code-specific prevention contract**. Before work, symbols and behavioral contracts make intent reviewable. After work, Runway-executed tests and fresh Git paths make the handoff checkable.
 
-The differentiator was chosen after rejecting two tempting directions. A fake multi-agent typing simulation would be theater, not evidence. Broad blast-radius prediction would require semantic-analysis claims the current engine cannot support. The selected replay uses existing product mechanics, exact public refs, and a checkable counterfactual disclosure. Its human provenance is now explicit: it proves the failure shape, while official Codex documentation supplies the separate agent-workflow basis.
+The differentiator was chosen after rejecting two tempting directions. A fake multi-agent typing simulation would be theater, not evidence. Broad blast-radius prediction would require semantic-analysis claims the current engine cannot support. The selected loop uses exact public refs, a native Codex lifecycle hook, and a checkable counterfactual disclosure. Human history proves the failure shape, official Codex documentation supplies the agent-workflow basis, and the trusted hook demonstrates the before-edit intervention.
 
 The public pitch should demonstrate that boundary instead of claiming a new category or naming a competitor. The strongest sequence is:
 
@@ -61,6 +61,7 @@ No subjective score decides that the build is ready. The release gate is objecti
 - all tests, lint, build, and static packaging pass;
 - the public replay resolves exact SHAs, names the overlap, and passes artifact verification;
 - the real Git drift test blocks handoff after a passing command and names the unexpected path;
+- the plugin validator, skill validator, and hook tests prove both an allowed in-lane patch and a denied out-of-lane patch;
 - the hosted guided flow reaches a diff-conformant receipt without console errors;
 - README and submission copy preserve every material limitation;
 - public links and CI are green;

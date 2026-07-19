@@ -7,7 +7,7 @@ Deadline anchor: the Jul 21, 2026, 5:00 PM PT submission deadline in `00_facts.m
 - **Dashboard:** React + Vite, browser-local control tower. It opens with a public collision replay, exposes exact refs and provenance, then guides a held lane through reroute, reserve, fixture audit, and receipt.
 - **Core:** shared, dependency-free JavaScript collision engine plus replay extractor. It compares exact shared files, exported symbols, contracts, module proximity, and resolved import edges; every alert carries inspectable evidence.
 - **CLI:** Node.js companion that reconstructs two Git ranges, initializes `.runway`, scans JS/TS exports/imports, reserves lanes, executes trusted verification, audits actual Git paths after the command, and conditionally creates a handoff.
-- **Codex integration:** a `runway` skill tells an agent to declare and reserve before editing, honor holds, invoke trusted verification through Runway, and report the resulting command and Git evidence.
+- **Codex integration:** a repository marketplace installs the `runway` skill, dependency-free CLI, and trusted `PreToolUse` hook. The skill declares and reserves scope; the hook rejects supported out-of-lane patch calls; the CLI executes proof and audits Git.
 - **Demo fixture:** a small JS/TS repository with three concurrent tasks and one real shared-symbol collision. It makes the product testable without an account or rebuild.
 
 ## Milestones
@@ -28,6 +28,7 @@ Deadline anchor: the Jul 21, 2026, 5:00 PM PT submission deadline in `00_facts.m
 - Do not execute an agent, create a worktree, or modify a target repository unless an operator invokes that explicit CLI action. `lane verify` executes the exact command supplied by the operator; warn against untrusted command text.
 - Never present the human-authored historical replay as evidence of AI-agent prevalence. Keep observed failure, official agent-workflow guidance, demonstrated mechanism, and unmeasured production scale separate.
 - Disclose that GPT-5.6 ran through Codex to build and pressure-test Runway but does not run inside the shipped product. Keep runtime decisions deterministic; do not add a decorative model call.
+- Describe the lifecycle hook as a bounded Codex patch guard, not universal runtime enforcement. Shell, hosted, MCP, editor, disabled-hook, and external writes remain outside its guarantee and are covered only by the final Git audit.
 - Keep the demo fully usable without credentials. `README.md` and `03_build_log.md` remain the submission evidence trail required by `00_facts.md`.
 
 
@@ -39,7 +40,11 @@ The original architecture line saying the collision engine scores import relatio
 
 The persisted scan now grounds declared files and symbols and contributes resolved one-hop relative-import edges as low, non-blocking review evidence. Exact declared file, symbol, and contract overlap remains the only basis for a hard hold. This preserves the transparent heuristic boundary while making scan output operational rather than decorative.
 
-The judge path now has three layers: a public GitHub Pages demo, a checked-in static build served with Node, and the full CLI/skill workflow against the real fixture. A GitHub Actions gate runs clean install, 30 tests, lint, and production build before deploying the checked-in static demo.
+The judge path now has four layers: a public GitHub Pages demo, a checked-in static build served with Node, an installable Codex plugin with native patch denial, and the full CLI workflow against the real fixture. A GitHub Actions gate runs clean install, 39 tests, lint, and production build before deploying the checked-in static demo.
+
+## 2026-07-19 - native Codex guard addendum
+
+The cooperative skill is now backed by a trusted `PreToolUse` hook for direct Codex patch tools. Each Codex process binds to `RUNWAY_LANE`; the hook is inert outside Runway-enabled repositories and fails closed inside them for missing, unknown, non-airborne, traversal, uninspectable, or undeclared targets. This narrows the largest participation gap without pretending to sandbox every write surface. The post-command Git audit remains mandatory.
 
 ## 2026-07-19 - two-sided scope contract addendum
 

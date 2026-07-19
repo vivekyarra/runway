@@ -1,6 +1,6 @@
 <svg xmlns="http://www.w3.org/2000/svg" width="1600" height="900" viewBox="0 0 1600 900" role="img" aria-labelledby="title desc">
   <title id="title">Runway code-scope contract architecture</title>
-  <desc id="desc">Human-authored Git history establishes a duplicate-implementation failure shape, official Codex guidance establishes the parallel-agent coordination risk, and Runway provides a deterministic pre-edit scope contract plus verified handoff.</desc>
+  <desc id="desc">Human-authored Git history establishes a duplicate-implementation failure shape, official Codex guidance establishes the parallel-agent coordination risk, and the Runway Codex plugin provides pre-edit clearance, a bounded patch guard, and verified handoff.</desc>
   <defs>
     <linearGradient id="background" x1="0" y1="0" x2="1" y2="1">
       <stop offset="0" stop-color="#071112"/>
@@ -33,8 +33,8 @@
   <circle cx="120" cy="780" r="310" fill="#53e6c7" opacity="0.025"/>
 
   <text x="90" y="78" class="label" fill="#d7ff5c">RUNWAY / CODE SCOPE CONTRACT</text>
-  <text x="90" y="145" class="title">Replay the failure. Stop the next collision.</text>
-  <text x="90" y="187" class="subtitle">Public Git history -&gt; pre-edit contract -&gt; executed proof + post-command audit.</text>
+  <text x="90" y="145" class="title">Declare. Guard the patch. Prove the handoff.</text>
+  <text x="90" y="187" class="subtitle">Public Git history -&gt; pre-edit contract -&gt; Codex hook -&gt; executed proof + Git audit.</text>
 
   <rect x="90" y="250" width="355" height="205" rx="20" fill="url(#panel)" stroke="#38504d"/>
   <circle cx="125" cy="290" r="7" fill="#53e6c7" filter="url(#glow)"/>
@@ -60,11 +60,12 @@
   <text x="628" y="346" class="label" fill="#d7ff5c">DETERMINISTIC CORE</text>
   <text x="628" y="375" class="panel-title">Runway scope contract engine</text>
 
-  <text x="624" y="422" class="body">1. Replay exact Git ranges as candidate scopes</text>
-  <text x="624" y="458" class="body">2. Ground live declarations in the JS/TS scan</text>
-  <text x="624" y="494" class="body">3. Return exact hold, caution, or clearance</text>
-  <text x="624" y="530" class="body">4. Execute the trusted verification command</text>
-  <text x="624" y="566" class="body">5. Re-read Git paths; reject drift</text>
+  <text x="624" y="412" class="body">1. Replay exact Git ranges as candidate scopes</text>
+  <text x="624" y="442" class="body">2. Ground live declarations in the JS/TS scan</text>
+  <text x="624" y="472" class="body">3. Return exact hold, caution, or clearance</text>
+  <text x="624" y="502" class="body">4. Deny out-of-lane Codex patch targets</text>
+  <text x="624" y="532" class="body">5. Execute the trusted verification command</text>
+  <text x="624" y="562" class="body">6. Re-read Git paths; reject remaining drift</text>
 
   <rect x="624" y="585" width="330" height="42" rx="10" fill="#091616" stroke="#36514c"/>
   <text x="644" y="612" class="mono">evidence, never opaque confidence</text>
@@ -72,7 +73,7 @@
   <rect x="575" y="700" width="430" height="112" rx="20" fill="url(#panel)" stroke="#36514c"/>
   <text x="604" y="739" class="label" fill="#82d6ff">REPLAY + LIVE EVIDENCE</text>
   <text x="604" y="774" class="body">Human replay: failure shape, not prevalence</text>
-  <text x="604" y="801" class="body">Agent lane: scope + command + fresh Git audit</text>
+  <text x="604" y="801" class="body">Agent lane: scope + patch guard + fresh Git audit</text>
   <path d="M790 700 V656" stroke="#79e6ce" stroke-width="3" marker-end="url(#arrow)"/>
 
   <path d="M1005 470 H1105" stroke="#79e6ce" stroke-width="3" marker-end="url(#arrow)"/>
@@ -100,5 +101,5 @@
   <text x="1160" y="786" class="body">executed test + conformant diff receipt</text>
   <path d="M1317 690 V714" stroke="#79e6ce" stroke-width="3" marker-end="url(#arrow)"/>
 
-  <text x="90" y="853" class="small">GPT-5.6 via Codex built it | deterministic runtime | human replay != agent prevalence | advisory, local-first CLI</text>
+  <text x="90" y="853" class="small">GPT-5.6 via Codex built it | native Codex skill + bounded PreToolUse guard | deterministic core | human replay != agent prevalence</text>
 </svg>

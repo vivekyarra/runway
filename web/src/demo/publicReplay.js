@@ -54,8 +54,8 @@ export const publicReplay = {
   disclosure: 'Counterfactual replay: human-authored Git changes stand in for scopes that should have been declared. It proves overlap existed; Runway was not deployed there and this is not agent-scale prevalence data.',
   agentBasis: 'Official Codex guidance separately warns that parallel write-heavy agent workflows can create conflicts and increase coordination overhead.',
   buildMode: {
-    builtWith: 'Codex + GPT-5.6-terra',
-    runtime: 'Deterministic / no model call',
+    builtWith: 'Codex plugin + PreToolUse guard',
+    runtime: 'Deterministic core / no model call',
   },
   attribution: 'Factual public metadata and MIT-licensed source identifiers. Runway is not affiliated with or endorsed by the source project, its foundation, or contributors.',
 }

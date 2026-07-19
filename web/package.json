@@ -1,6 +1,6 @@
 {
   "name": "runway-codex-control-tower",
-  "description": "Reconstruct duplicate implementation from Git, then prevent parallel coding-agent scope collisions with declared scope and Runway-executed proof.",
+  "description": "Stop parallel Codex scope collisions before editing with declared intent, a native patch guard, executed proof, and a final Git audit.",
   "private": true,
   "version": "1.1.0",
   "engines": {
