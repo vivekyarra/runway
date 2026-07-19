@@ -1,6 +1,6 @@
 <svg xmlns="http://www.w3.org/2000/svg" width="1600" height="900" viewBox="0 0 1600 900" role="img" aria-labelledby="title desc">
-  <title id="title">Runway pre-edit clearance architecture</title>
-  <desc id="desc">Two Codex agents declare intended files, symbols, and behavioral contracts. Runway grounds them in a repository scan, returns explainable clearance, and records a verified handoff.</desc>
+  <title id="title">Runway code-scope contract architecture</title>
+  <desc id="desc">Two Codex agents declare intended files, symbols, and behavioral contracts before coding. Runway returns explainable clearance, then audits actual Git changed paths before accepting a handoff.</desc>
   <defs>
     <linearGradient id="background" x1="0" y1="0" x2="1" y2="1">
       <stop offset="0" stop-color="#071112"/>
@@ -32,9 +32,9 @@
   <circle cx="1450" cy="70" r="260" fill="#d7ff5c" opacity="0.025"/>
   <circle cx="120" cy="780" r="310" fill="#53e6c7" opacity="0.025"/>
 
-  <text x="90" y="78" class="label" fill="#d7ff5c">RUNWAY / PRE-EDIT INTERCEPTION</text>
-  <text x="90" y="145" class="title">Stop the collision before the first edit.</text>
-  <text x="90" y="187" class="subtitle">A transparent control layer between parallel Codex intent and repository change.</text>
+  <text x="90" y="78" class="label" fill="#d7ff5c">RUNWAY / CODE SCOPE CONTRACT</text>
+  <text x="90" y="145" class="title">Declare before code. Prove the diff after.</text>
+  <text x="90" y="187" class="subtitle">One inspectable boundary: planned code scope versus actual changed code.</text>
 
   <rect x="90" y="250" width="355" height="205" rx="20" fill="url(#panel)" stroke="#38504d"/>
   <circle cx="125" cy="290" r="7" fill="#53e6c7" filter="url(#glow)"/>
@@ -58,20 +58,21 @@
   <rect x="575" y="290" width="430" height="360" rx="28" fill="#122725" stroke="#6d8c85" stroke-width="2"/>
   <rect x="602" y="317" width="376" height="70" rx="15" fill="#d7ff5c" opacity="0.08" stroke="#d7ff5c" stroke-opacity="0.35"/>
   <text x="628" y="346" class="label" fill="#d7ff5c">DETERMINISTIC CORE</text>
-  <text x="628" y="375" class="panel-title">Runway clearance engine</text>
+  <text x="628" y="375" class="panel-title">Runway scope contract engine</text>
 
-  <text x="624" y="430" class="body">1. Normalize declared paths and symbols</text>
-  <text x="624" y="472" class="body">2. Ground scope in the persisted JS/TS scan</text>
-  <text x="624" y="514" class="body">3. Compare files, symbols, contracts, imports</text>
-  <text x="624" y="556" class="body">4. Protect the established airborne owner</text>
+  <text x="624" y="422" class="body">1. Normalize planned files, symbols, contracts</text>
+  <text x="624" y="458" class="body">2. Ground declarations in the JS/TS scan</text>
+  <text x="624" y="494" class="body">3. Return exact hold, caution, or clearance</text>
+  <text x="624" y="530" class="body">4. Read actual Git paths after implementation</text>
+  <text x="624" y="566" class="body">5. Reject undeclared paths before handoff</text>
 
   <rect x="624" y="585" width="330" height="42" rx="10" fill="#091616" stroke="#36514c"/>
   <text x="644" y="612" class="mono">evidence, never opaque confidence</text>
 
   <rect x="575" y="700" width="430" height="112" rx="20" fill="url(#panel)" stroke="#36514c"/>
-  <text x="604" y="739" class="label" fill="#82d6ff">REPOSITORY SCAN</text>
-  <text x="604" y="777" class="body">Files + exports + one-hop relative imports</text>
-  <text x="604" y="801" class="small">Grounding informs review; it never pretends to infer intent.</text>
+  <text x="604" y="739" class="label" fill="#82d6ff">REPOSITORY + GIT EVIDENCE</text>
+  <text x="604" y="774" class="body">Before: files + exports + one-hop imports</text>
+  <text x="604" y="801" class="body">After: staged + unstaged + untracked paths</text>
   <path d="M790 700 V656" stroke="#79e6ce" stroke-width="3" marker-end="url(#arrow)"/>
 
   <path d="M1005 470 H1105" stroke="#79e6ce" stroke-width="3" marker-end="url(#arrow)"/>
@@ -95,9 +96,9 @@
   <text x="1214" y="593" class="small">Reserve the bounded lane and work.</text>
 
   <rect x="1125" y="720" width="385" height="92" rx="20" fill="#d7ff5c" opacity="0.09" stroke="#d7ff5c" stroke-opacity="0.35"/>
-  <text x="1160" y="756" class="label" fill="#d7ff5c">VERIFIED HANDOFF</text>
-  <text x="1160" y="788" class="body">scope + command + result + remaining risk</text>
+  <text x="1160" y="756" class="label" fill="#d7ff5c">HANDOFF GATE</text>
+  <text x="1160" y="786" class="body">scope + conformant diff + test evidence</text>
   <path d="M1317 690 V714" stroke="#79e6ce" stroke-width="3" marker-end="url(#arrow)"/>
 
-  <text x="90" y="853" class="small">Local-first · dependency-free CLI · reusable Codex skill · browser judge path · no runtime model call required</text>
+  <text x="90" y="853" class="small">Advisory, not write enforcement · local-first · dependency-free CLI · reusable Codex skill · no runtime model call</text>
 </svg>

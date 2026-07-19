@@ -38,8 +38,6 @@ The live overview names this panel:
 - Leah Belsky — VP of Education
 - Peter Steinberger — Member of Technical Staff, Clawfather
 
-Public background is a secondary signal only; the published criteria remain authoritative. The 2026-07-19 fit review in `03_build_log.md` labels profile-based conclusions as inferences rather than private knowledge.
-
 ## Judging
 
 - Stage 1: pass/fail baseline viability - fits the theme and reasonably applies the required APIs/SDKs.

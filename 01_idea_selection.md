@@ -1,92 +1,66 @@
-# Idea selection - locked
+# Idea selection and evidence review
 
-Scoring: T=technical implementation, D=design, I=potential impact, Q=idea quality, F=polished feasibility (1-10). Overall is the mean of T/D/I/Q, matching the four equal criteria in `00_facts.md`.
+This document records why Runway was selected and what the current build can prove. It intentionally contains no builder-assigned scores or win probabilities. Those numbers would be the project grading itself and are not evidence.
 
-| Track | Idea | T | D | I | Q | F | Overall | Decision |
-|---|---|---:|---:|---:|---:|---:|---:|---|
-| Apps | Blackout Book - household continuity planner | 8 | 8 | 9 | 8 | 7 | 8.25 | Shortlist |
-| Apps | Care Relay - caregiver shift handoff | 7 | 8 | 9 | 7 | 6 | 7.75 | Cut: safety/domain burden |
-| Apps | Proof Pocket - consumer evidence packet | 8 | 8 | 8 | 8 | 7 | 8.00 | Cut: legal-adjacent trust risk |
-| Apps | MoveMap - moving-home dependency simulator | 7 | 7 | 7 | 5 | 9 | 6.50 | Cut: derivative |
-| Apps | Friction Lab - energy-aware recovery planner | 7 | 8 | 8 | 6 | 8 | 7.25 | Cut: crowded planner category |
-| Work | Handoff Zero - AI-to-human work transfer | 8 | 8 | 9 | 8 | 8 | 8.25 | Cut: crowded continuity category |
-| Work | Incident Loom - incident rehearsal studio | 9 | 9 | 9 | 9 | 6 | 9.00 | Cut: simulation/product-scope risk |
-| Work | Commitment Compiler - decision contract | 8 | 8 | 8 | 7 | 8 | 7.75 | Cut: summary-tool adjacent |
-| Work | Policy Diff - role-specific policy impact | 8 | 8 | 8 | 7 | 8 | 7.75 | Cut: document-AI adjacent |
-| Work | Fieldnote to Fork - field-to-decision board | 8 | 8 | 8 | 7 | 7 | 7.75 | Cut: needs integrations to feel real |
-| Dev tools | **Runway - parallel-agent air traffic control** | **10** | **9** | **9** | **10** | **8** | **9.50** | **WINNER** |
-| Dev tools | Proofline - proof-carrying change review | 10 | 9 | 9 | 7 | 8 | 8.75 | Cut: verifier category is crowded |
-| Dev tools | Agent Flight Recorder - trace viewer | 9 | 9 | 8 | 8 | 8 | 8.50 | Cut: observability-only |
-| Dev tools | Contract Atlas - legacy API promise map | 9 | 8 | 8 | 8 | 8 | 8.25 | Cut: less memorable demo |
-| Dev tools | Failure Garden - counterexample generator | 9 | 8 | 9 | 9 | 8 | 8.75 | Cut: testing-agent adjacent |
-| Education | Misconception Lab - prediction/counterexample learning | 9 | 10 | 9 | 9 | 8 | 9.25 | Runner-up |
-| Education | Argument Gym - evidence-based claim practice | 8 | 9 | 9 | 8 | 8 | 8.50 | Cut: debate-tutor adjacent |
-| Education | System Safari - emergent-system simulator | 10 | 10 | 9 | 9 | 5 | 9.50 | Cut: polish risk |
-| Education | Code Archaeologist - infer-and-repair lab | 8 | 9 | 8 | 7 | 8 | 8.00 | Cut: familiar coding tutor |
-| Education | Lab Bench - reproducible experiment builder | 9 | 9 | 9 | 9 | 7 | 9.00 | Cut: too broad to demonstrate deeply |
+## Why Runway was selected
 
-## Locked concept: Runway
+The candidate set covered Apps, Work, Developer Tools, and Education. Runway was selected because it offered the strongest combination of:
 
-**One-line pitch:** *Runway is air-traffic control for parallel Codex agents: it assigns work lanes, predicts shared-symbol and dependency collisions before edits start, and leaves an evidence-backed handoff when a lane is clear.*
+- a problem parallel coding-agent users recognize immediately;
+- a concrete failure that can be demonstrated with exact code artifacts;
+- a local implementation that judges can reproduce without an account or API key;
+- a short interaction with a visible unsafe state, corrective action, and receipt;
+- room to state limitations without making the core product disappear.
 
-### Why it wins
+The rejected directions either needed sensitive-domain trust, integrations, longitudinal data, or a much broader simulator to feel complete. This is a product-scope decision, not a claim that Runway was objectively the highest-scoring idea.
 
-- **Technical implementation:** Codex is the active operator, not a chat wrapper: it reserves a lane, reads a collision report, works in a scoped branch/worktree, validates, and closes with an auditable handoff. The core delivers real JS/TS symbol/import analysis and deterministic collision reasoning.
-- **Design:** a visual mission-control surface makes parallel-agent coordination legible in seconds; every warning names the exact overlapping file, symbol, or contract.
-- **Potential impact:** as teams use multiple coding agents, file-level Git conflicts arrive too late. Runway catches the more expensive conflict—two agents independently changing the same behavior—before code diverges.
-- **Quality of idea:** verification and agent-memory tools already exist; the differentiated unit here is a **pre-edit semantic work lane** with safe routing, not another post-hoc dashboard.
-- **Feasibility:** the first release is deliberately bounded to local JavaScript/TypeScript repositories, a bundled demo repo, and explicit heuristic confidence. It never claims universal static analysis or formal correctness.
+## Current product sentence
 
-### Build contract
+> Runway gives parallel coding agents a code-scope contract: declare expected files, symbols, and behavior before coding, then prove the actual Git changed-file set stayed inside that lane before handoff.
 
-Ship a local dashboard, a Codex-ready CLI/skill, a real collision engine, a working demo fixture, tests, and an exportable lane handoff. No runtime API key, account, or hosted service is required. The Dev Tools submission will include the no-rebuild demo path required by `00_facts.md`.
+The shorter hook is: **Declare before code. Prove the diff after.**
 
+## Evidence against the published criteria
 
-## 2026-07-17 - implementation self-critique and differentiation addendum
+| Criterion | Checkable evidence | Remaining limitation |
+|---|---|---|
+| Technical implementation | Shared deterministic core; dependency-free CLI; JS/TS repository scan; exclusive local writer lock and atomic state replacement; actual Git changed-file audit; guarded lane lifecycle; 27 passing tests | Scanner is pattern-based rather than compiler-grade; state protocol is local, not distributed |
+| Design | Public no-rebuild demo; exact file/symbol/contract evidence; legible hold -> reroute -> reserve -> diff audit -> handoff path; caution is visually distinct from hold | Browser uses a labeled fixture diff snapshot and does not execute Git or tests |
+| Potential impact | Prevents duplicate planned behavior work before edits and catches undeclared changed paths before accepting handoff | Requires teams and agents to adopt the protocol; no production adoption study is claimed |
+| Quality of idea | Two-sided boundary between planned code scope and actual changed code; narrower than general agent routing and earlier than merge review | Adjacent agent-lane products exist; file conformance cannot prove semantic conformance inside an allowed file |
 
-This addendum does not change the locked choice above. It scores the product that now exists, rather than the earlier concept pitch.
+## Product correction after adversarial review
 
-| Judging criterion | Implemented score | Honest basis |
-|---|---:|---|
-| Technical implementation | 8.5 | Shared deterministic core, browser demo, dependency-free CLI, local atomic-write protocol, source fixture, and adversarial tests are real and runnable. The scanner is intentionally shallow JS/TS pattern matching, and declarations still depend on agent honesty. |
-| Design | 8.0 | The hold -> reroute -> reserve -> handoff flow is easy to follow in the static demo and names the exact scope evidence. It remains a fixed local scenario rather than a live shared control plane. |
-| Potential impact | 7.5 | Parallel agents create a genuine early-coordination problem, and this workflow makes it concrete. Adoption depends on teams consistently declaring scope before editing. |
-| Idea quality | 6.5 | The pre-edit clearance boundary is focused and defensible, but the broader agent-lane category already has credible adjacent work. The product must stay precise rather than claim a category monopoly. |
+An external review identified three valid credibility problems:
 
-**Implemented mean: 7.6/10.** The original 9.5 was an idea-selection estimate, not an earned implementation score.
+1. Builder-assigned scores were circular and have been removed.
+2. Judge-profile inference was weak evidence and has been removed from product decisions and submission positioning.
+3. Cooperative declarations were the load-bearing weakness. Runway now checks the actual Git worktree before handoff, persists the audit, invalidates it after reservation or reroute, and rejects missing, failed, or stale audits.
 
-### Weaknesses to state plainly
+The third change narrows rather than hides the remaining weakness. The audit catches undeclared changed files. It does not prevent an agent from writing, detect every behavioral change within a declared file, or force a process to participate.
 
-- A declaration can be incomplete, stale, or dishonest; Runway cannot discover every intended edit.
-- The scanner inventories common JS/TS surface patterns but does not perform semantic program analysis.
-- State coordination is local and cooperative, not a hosted team service or distributed lock.
-- The dashboard demonstrates the protocol; it does not watch agents edit files or prove a merge will succeed.
+## Differentiation boundary
 
-### Two-minute defense: why Runway beats the alternatives
+General agent control planes route agents and tasks. Runway controls one code-specific failure boundary: **planned scope versus actual changed code**. Before work, symbols and behavioral contracts make intent reviewable. After work, Git paths make scope conformance checkable.
 
-Parallel-agent tools usually solve a later problem. A worktree separates files after an agent starts. A file claim can stop two agents once they touch the same path. A trace or review tool explains what happened after work is done.
+The public pitch should demonstrate that boundary instead of claiming a new category or naming a competitor. The strongest sequence is:
 
-Runway occupies the earlier decision: before code diverges, ask each agent to say what it intends to change. Files alone are not enough, so the declaration also includes exported symbols and behavioral contracts. The product then gives a small, inspectable answer: proceed, proceed with caution, or hold - plus the exact scope that caused the answer.
+1. exact file + symbol + contract overlap causes a hold;
+2. an import edge causes only a caution;
+3. reroute and reserve isolate the work;
+4. an actual undeclared Git path blocks handoff;
+5. a conformant diff plus recorded test evidence creates the receipt.
 
-That matters because the cheapest conflict is the one rerouted before implementation. It is also credible as a hackathon build: the judge can see the exact decision, reproduce it locally with no account, inspect the heuristic, and follow the evidence into the handoff. We do not pretend to replace Git, worktrees, tests, or code review. Runway is the pre-edit decision layer that makes those later safeguards start from a clearer plan.
+## Completion gate
 
-### Calculated differentiation move
+No subjective score decides that the build is ready. The release gate is objective:
 
-Lead every submission-facing surface with **pre-edit declared-scope clearance**, not generic agent orchestration. Show the file/symbol/contract evidence and the reroute-and-recheck decision. State the boundary explicitly: transparent local heuristic, not runtime enforcement or merge proof.
+- clean install succeeds;
+- all tests, lint, build, and static packaging pass;
+- the real Git drift test blocks handoff and names the unexpected path;
+- the hosted guided flow reaches a diff-conformant receipt without console errors;
+- README and submission copy preserve every material limitation;
+- public links and CI are green;
+- video and images visibly carry the proof a judge might never click through to inspect.
 
-## 2026-07-19 - final judge-ready reassessment
-
-This score reflects the pushed public build, hosted demo, clean-clone verification, and submission kit—not planned work.
-
-| Judging criterion | Final score | Evidence and remaining ceiling |
-|---|---:|---|
-| Technological implementation | 9.3 | Shared deterministic core, repository grounding, resolved one-hop dependency evidence, dependency-free CLI, guarded lifecycle, concurrent local writes, Codex skill, 23 tests, cross-platform clean install, and green deployment CI. The JS/TS scanner remains intentionally shallow rather than compiler-grade. |
-| Design | 9.2 | One-click hosted demo, immediate three-signal interception, coherent 45-second resolution, exact evidence, responsive control tower, state import/export, and local fallback. The browser and CLI are connected by JSON import rather than a hosted live control plane. |
-| Potential impact | 8.6 | The audience and failure point are specific: developers running parallel Codex work in one repository. The fixture proves the solution before editing, but this hackathon build does not claim a user study or production adoption. |
-| Quality of the idea | 8.4 | The pre-edit semantic lane is distinct from worktrees, locks, post-PR dependency graphs, and trace dashboards. Generic agent control towers are adjacent, so the submission must keep the narrow declared-scope boundary prominent. |
-
-**Final mean: 8.9/10**, up from the implemented 7.6 review. The remaining gap is honest and mostly external to a one-week build: longitudinal adoption evidence, deeper language analysis, and shared-team infrastructure.
-
-### Stop decision
-
-No additional feature has a better risk-adjusted effect before submission than recording the video, running `/feedback`, creating the Devpost project, and verifying the final public links. The code is frozen after clean-clone, Linux CI, static HTTP, hosted browser-flow, and public README checks. Further feature expansion would weaken the evidence, demo timing, or differentiation.
+Account-bound submission actions and the final recorded video remain separate from code readiness.

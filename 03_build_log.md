@@ -7,7 +7,7 @@
 ## 2026-07-17 - foundation
 
 - Verified the source-of-truth competition rules in `00_facts.md` before choosing scope.
-- Used parallel Codex research passes to score 20 concepts across all tracks. Locked Runway in `01_idea_selection.md`; rejected proof/trace dashboards after checking the live category for close competitors.
+- Used parallel Codex research passes to evaluate candidate concepts across all tracks. Locked Runway in `01_idea_selection.md`; rejected proof/trace dashboards after checking the live category for close competitors.
 - Chose a local React/Vite dashboard plus dependency-free Node CLI: the judge can run the real demo without keys, a hosted account, or opaque model output.
 - Chose a bounded JS/TS semantic-collision engine rather than claiming universal code understanding. Alerts must name the concrete overlapping evidence.
 - Designed the Codex contribution as an executable skill + CLI protocol: reserve lane -> inspect collision -> work -> attach evidence -> hand off.
@@ -56,17 +56,27 @@
 - Expanded the Parcel Ops fixture with a grounded receipt-copy lane and added regression coverage for dependency edges, grounding, active handoff exclusion, and persisted CLI scan output. Local verification passed 23/23 tests, lint, build, and demo packaging.
 - Published product milestone `08e0deb` and deployment milestone `7aac83d`. The first Linux workflow correctly exposed a cross-platform optional-dependency lock gap; `9630ccc` fixed the clean-install contract. The next GitHub Actions run passed verification and deployed the public judge demo at https://vivekyarra.github.io/runway/.
 
-## 2026-07-19 - rules, panel, and precedent cross-check
+## 2026-07-19 - rules and precedent cross-check
 
 - Rechecked the live Devpost overview and Official Rules. The four criteria remain equally weighted, with technological implementation first in tie-breaking. Judges may choose not to run the project and may score only the text, images, and video. This drove the one-click hosted demo, first-fold proof, submission screenshot, architecture visual, and exact video script.
 - The official gallery is still unpublished, so no honest claim about the current field can be made. The earlier Regente check remains the closest known category overlap; Runway continues to lead with the narrower pre-edit declared-scope boundary.
-- Public panel material was used only as an inferential product signal. Thibault Sottiaux's OpenAI Forum profile emphasizes codebase understanding, real engineering tasks, and collaboration across the software lifecycle. Kathy Korevec's published DevEx principles emphasize minimizing context switches, fast time-to-code, dependability, and not burying the lede. Tara Seshan publicly describes a founder-to-product-to-GM background and interest in workspace agents. Leah Belsky's public OpenAI education material emphasizes practical building plus evidence of outcomes. Peter Steinberger's public GitHub profile shows deep CLI, local-first, concurrent-agent, and developer-tool work.
 - The most relevant winner precedent was GitLab's 2026 AI Hackathon, which used the same four judging dimensions. Its published recap praised serious test coverage, explainable decisions, strong demo/UX, in-workflow action, and projects that felt like products rather than hackathon prototypes. Runway adopted those patterns through the CLI/skill protocol, visible evidence, 23 focused tests, hosted demo, and coherent four-action resolution; it did not copy winner features or broaden into generic orchestration.
-- Sources checked: https://openai.devpost.com/, https://openai.devpost.com/rules, https://forum.openai.com/public/events/codex-is-for-everyone-why-codex-matters-beyond-code-fa40puy7wi, https://kathykorevec.medium.com/devex-principles-minimize-switching-contexts-c2d36929b520, https://github.com/steipete, and https://about.gitlab.com/blog/gitlab-ai-hackathon-2026-meet-the-winners/.
+- Sources checked: https://openai.devpost.com/, https://openai.devpost.com/rules, and https://about.gitlab.com/blog/gitlab-ai-hackathon-2026-meet-the-winners/.
 
 ## 2026-07-19 - final release gate
 
 - Cloned the public repository at the latest pushed commit into a fresh temporary directory. `npm ci`, 23/23 tests, lint, and production build all passed; the checked-in no-rebuild server returned HTTP 200 with the expected product title. The verified temporary clone and its demo process were removed afterward.
 - Re-ran the public GitHub Pages flow in a clean browser state: hold -> reroute -> reserve -> verified handoff reached “Collision avoided. Evidence preserved.” The public GitHub README exposed the live-demo link and judge-facing pitch correctly.
 - Confirmed the latest GitHub Actions verification/deployment run passed on Linux and the repository was clean and synchronized with `origin/main`.
-- Final implementation score is recorded in `01_idea_selection.md`. Feature work is frozen. Remaining required actions are account-bound: create the Devpost project, record/upload the public sub-three-minute video, run `/feedback` in the core-build thread, paste the Session ID, and submit.
+- The release was evidence-complete for that iteration. Remaining required actions were account-bound: create the Devpost project, record/upload the public sub-three-minute video, run `/feedback` in the core-build thread, paste the Session ID, and submit.
+
+## 2026-07-19 - adversarial credibility correction
+
+- Accepted an external review that builder-assigned scores were circular evidence. Removed every self-rating and replaced them with an evidence-versus-limitations map. No internal win probability is used as a release signal.
+- Removed judge-profile inference from the facts, build log, and positioning. The published rules and judging criteria are the decision source; named judges' public posts are not treated as product requirements.
+- Reframed the hook as **Declare before code. Prove the diff after.** The differentiator is one inspectable boundary—planned code scope versus actual changed code—not a claim to be a general orchestration category leader.
+- Added `lane audit`. By default it reads staged, unstaged, and untracked paths from the actual Git worktree, ignores `.runway`, compares them with the declared files, and persists exact in-scope and unexpected paths. Missing, failed, or stale audits reject handoff; reservation and reroute invalidate prior audits.
+- Extended the browser judge path with a clearly labeled fixture diff audit and a visible diff-conformance receipt. The browser still does not claim to execute Git or tests.
+- Added real temporary-Git regression coverage: an undeclared `src/drift.js` change is named and blocks handoff; restoring it makes the audit pass. Added a separate file-boundary guard for symbol-only declarations. The suite now contains 27 tests.
+- Preserved the remaining limitations: participation is cooperative; the audit is file-level rather than symbol-level enforcement; declarations can be overly broad; and no distributed lock, runtime write prevention, compiler-grade analysis, or conflict-free merge guarantee is claimed.
+- Recorded the product mechanism and regression coverage in milestone commit `d188e8c` before the submission-copy and visual update.

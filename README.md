@@ -1,8 +1,8 @@
 # Runway
 
-> Stop two coding agents from changing the same behavior before either one edits.
+> Declare before code. Prove the diff after.
 
-Runway is pre-edit declared-scope clearance for parallel Codex agents. Each agent declares the files, exported symbols, and behavioral contracts it expects to change. Runway grounds that declaration in a repository scan, explains collisions with exact evidence, and either clears, cautions, or holds the work lane. A verified handoff preserves what changed, what command was run, and what risk remains.
+Runway gives parallel Codex agents a code-scope contract. Each agent declares the files, exported symbols, and behavioral contracts it expects to change. Runway grounds that declaration in a repository scan, explains collisions with exact evidence, and either clears, cautions, or holds the work lane. Before handoff, the CLI compares the actual Git changed-file set with the declaration and blocks scope drift.
 
 Runway is entered in the **Developer Tools** track of OpenAI Build Week.
 
@@ -27,9 +27,12 @@ Open [http://127.0.0.1:4174](http://127.0.0.1:4174), then follow the **45-second
 1. See Tax held before editing because it duplicates Pricing at `src/quote.js`, `quoteTotal`, and the `pricing` contract.
 2. Choose **Reroute held lane**. Runway removes the owned overlap and rechecks the declaration.
 3. Choose **Reserve clear lane**. The isolated tax-adjustment lane becomes airborne.
-4. Choose **Create verified handoff**. The receipt preserves declared scope and observed test evidence.
+4. Choose **Audit changed files**. The labeled fixture diff must stay inside the declared file boundary.
+5. Choose **Create verified handoff**. The receipt preserves declared scope, diff conformance, and observed test evidence.
 
 The dashboard also shows a non-blocking repository dependency warning: Checkout imports Pricing's file even though their declarations do not directly overlap. That is the difference between a transparent review signal and a hard hold.
+
+![Runway proves the changed files stayed inside the declared lane before handoff](docs/runway-diff-proof.png)
 
 ## The problem
 
@@ -44,7 +47,8 @@ Files alone are not enough. Two agents can touch different paths while changing 
 - **Pre-edit clearance:** deterministic scoring over exact files, case-sensitive exported symbols, behavioral contracts, module proximity, and scanned one-hop relative imports.
 - **Repository grounding:** a persisted JS/TS scan reports which declared files and symbols exist and names anything unknown.
 - **Explainable decisions:** every hold or caution carries the file, symbol, contract, or dependency edge that caused it.
-- **Safe lane lifecycle:** declare, inspect, reserve, reroute, and create an evidence-backed handoff; invalid transitions are rejected.
+- **Actual-diff conformance:** the CLI reads staged, unstaged, and untracked Git paths, names undeclared changed files, and requires a current passing audit before handoff.
+- **Safe lane lifecycle:** declare, inspect, reserve, reroute, audit, and create an evidence-backed handoff; invalid transitions and stale audits are rejected.
 - **Concurrent local state:** CLI writers use an exclusive local lock, reload under lock, then atomically replace `.runway/state.json`.
 - **Codex-native workflow:** the bundled skill instructs an agent to declare before editing, honor holds, verify real work, and hand off.
 - **Portable product demo:** checked-in static assets, fixture source, and tests run without credentials or a network service.
@@ -96,10 +100,11 @@ node bin\runway.mjs lane reserve --root fixtures\parcel-ops --id tax-adjustment
 
 # Run the evidence command yourself before recording its result.
 node --test fixtures\parcel-ops\tests\tax.test.mjs
+node bin\runway.mjs lane audit --root fixtures\parcel-ops --id tax-adjustment
 node bin\runway.mjs lane handoff --root fixtures\parcel-ops --id tax-adjustment --evidence "node --test fixtures/parcel-ops/tests/tax.test.mjs" --result "passing" --note "Tax adjustment path verified after reroute."
 ~~~
 
-A lane must declare at least one file, symbol, or contract. Runway only creates a handoff for an airborne lane and records the evidence supplied by the operator; it does not falsely claim to have run that command.
+A lane must declare at least one file, symbol, or contract, and a handoff additionally requires a declared file boundary. Run the audit in a dedicated clean worktree: it reads the current staged, unstaged, and untracked paths and ignores `.runway`. Runway records the verification supplied by the operator; it does not falsely claim to have run that command.
 
 ### Local write protocol
 
@@ -133,11 +138,11 @@ npm run build
 npm run package:demo
 ~~~
 
-The current suite has 23 tests covering the fixture, collision model, repository grounding, dependency evidence, lane guards, concurrent writers, and stale-lock recovery.
+The current suite has 27 tests covering the fixture, collision model, repository grounding, dependency evidence, actual Git diff conformance, file-boundary, stale-audit and handoff guards, concurrent writers, and stale-lock recovery.
 
 ## Architecture
 
-![Runway pre-edit clearance architecture](docs/runway-architecture.svg)
+![Runway code-scope contract architecture](docs/runway-architecture.svg)
 
 ~~~text
 Codex agent -> runway skill -> dependency-free Node CLI -> .runway/state.json
@@ -145,6 +150,7 @@ Codex agent -> runway skill -> dependency-free Node CLI -> .runway/state.json
                                   |                         +-> atomic local state + receipts
                                   +-> JS/TS scan ---------->+-> grounding + import edges
                                   +-> declared scope ------>+-> clear / caution / hold
+                                  +-> actual Git paths ---->+-> conformant / scope drift
 
 React dashboard -> same collision core -> guided demo + JSON import/export
 Bundled fixture  -> real source/tests  -> reproducible evidence
@@ -154,16 +160,16 @@ The collision core is shared by the CLI and React dashboard. The static demo is 
 
 ## Why Runway is different
 
-Runway is not another general agent orchestrator or post-hoc trace viewer. Its narrow unit is a **pre-edit semantic work lane**:
+General agent control planes route work. Runway controls one narrower failure boundary: **planned code scope versus actual changed code**. Its unit is a two-sided code-scope contract:
 
-- earlier than merge conflict resolution;
+- declared before implementation and checked against the Git changed-file set before handoff;
 - richer than a file lock because it names symbols and behavioral contracts;
 - more honest than opaque “AI confidence” because the evidence and scoring are inspectable;
 - complementary to Git, worktrees, tests, and review rather than a replacement for them.
 
 ## Honest boundaries
 
-Runway is a cooperative local heuristic. Declarations can be incomplete or stale. The scanner recognizes common JS/TS exports, imports, and routes; it is not a compiler or whole-program analyzer. A caution does not prove a collision, and clearance does not guarantee a conflict-free merge. The dashboard does not monitor agents or execute commands.
+Runway is a cooperative local advisory layer. The diff audit catches undeclared changed paths, but it does not prevent writes, stop a process from ignoring the protocol, or prove that edits inside an allowed file match the declared symbol or contract. The scanner recognizes common JS/TS exports, imports, and routes; it is not a compiler or whole-program analyzer. A caution does not prove a collision, and clearance does not guarantee a conflict-free merge. The dashboard does not monitor agents or execute Git or test commands; its guided flow uses a clearly labeled fixture diff snapshot.
 
 These boundaries are deliberate: a judge can reproduce every product decision without trusting a hidden model call.
 
@@ -171,9 +177,9 @@ These boundaries are deliberate: a judge can reproduce every product decision wi
 
 Codex with GPT-5.6-terra accelerated the project from product selection through adversarial verification:
 
-- **Product:** compared 20 candidate ideas against the four judging criteria and narrowed the position to pre-edit declared-scope clearance.
-- **Engineering:** implemented the shared collision core, CLI, repository scan, atomic local write protocol, transition guards, and JSON state bridge.
-- **Design:** shaped the collision -> reroute -> reserve -> verified-handoff story into a guided judge flow.
+- **Product:** narrowed the product from general orchestration to one testable boundary: declared scope versus actual changed files.
+- **Engineering:** implemented the shared collision core, CLI, repository scan, Git diff audit, atomic local write protocol, transition guards, and JSON state bridge.
+- **Design:** shaped the collision -> reroute -> reserve -> diff audit -> handoff story into a guided judge flow.
 - **QA:** found and fixed Windows path normalization, symbol-case, ownership-order, unscoped-lane, concurrent-write, stale-lock, and claim-accuracy defects; added regression tests.
 
 The core-build session of record is `019f6e9b-8401-78c0-a71b-56273ec52b3f`, authenticated as `gpt-5.6-terra`. [03_build_log.md](03_build_log.md) records decisions, validation evidence, and remaining risks. [SUBMISSION.md](SUBMISSION.md) contains final Devpost copy, the exact video script, and the account-bound checklist.

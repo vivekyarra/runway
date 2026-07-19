@@ -5,9 +5,9 @@ Deadline anchor: the Jul 21, 2026, 5:00 PM PT submission deadline in `00_facts.m
 ## Product architecture
 
 - **Dashboard:** React + Vite, browser-local interactive mission control. It opens/edit/reroutes work lanes, shows evidence, exports a portable state file, and has a one-click deterministic demo.
-- **Core:** shared, dependency-free JavaScript collision engine. It scores exact shared files, shared exported symbols, declared contracts, and import relationships; every alert carries the evidence and a confidence label.
-- **CLI:** Node 24 command-line companion that initializes `.runway`, scans JS/TS exports/imports, reserves lanes, records evidence, and creates a handoff. It is intentionally local-only.
-- **Codex integration:** a `runway` skill tells an agent to reserve before editing, honor blocked lanes, attach verification evidence, and hand off explicitly. It calls the local CLI rather than requiring an API key or an experimental runtime.
+- **Core:** shared, dependency-free JavaScript collision engine. It compares exact shared files, exported symbols, declared contracts, module proximity, and resolved import edges; every alert carries inspectable evidence. It also evaluates declared files against an observed changed-file set.
+- **CLI:** Node.js command-line companion that initializes `.runway`, scans JS/TS exports/imports, reserves lanes, audits actual Git changed paths, records evidence, and creates a handoff. It is intentionally local-only.
+- **Codex integration:** a `runway` skill tells an agent to declare and reserve before editing, honor holds, audit the Git worktree, attach verification evidence, and hand off explicitly. It calls the local CLI rather than requiring an API key or an experimental runtime.
 - **Demo fixture:** a small JS/TS repository with three concurrent tasks and one real shared-symbol collision. It makes the product testable without an account or rebuild.
 
 ## Milestones
@@ -37,4 +37,8 @@ The original architecture line saying the collision engine scores import relatio
 
 The persisted scan now grounds declared files and symbols and contributes resolved one-hop relative-import edges as low, non-blocking review evidence. Exact declared file, symbol, and contract overlap remains the only basis for a hard hold. This preserves the transparent heuristic boundary while making scan output operational rather than decorative.
 
-The judge path now has three layers: a public GitHub Pages demo, a checked-in static build served with Node, and the full CLI/skill workflow against the real fixture. A GitHub Actions gate runs clean install, 23 tests, lint, and production build before deploying the checked-in static demo.
+The judge path now has three layers: a public GitHub Pages demo, a checked-in static build served with Node, and the full CLI/skill workflow against the real fixture. A GitHub Actions gate runs clean install, 27 tests, lint, and production build before deploying the checked-in static demo.
+
+## 2026-07-19 - two-sided scope contract addendum
+
+Pre-edit clearance alone left a cooperative declaration unverified after implementation. The release now requires a second boundary before handoff: `lane audit` reads staged, unstaged, and untracked Git paths and compares them with the lane's declared files. Missing, failed, and stale audits block the receipt. The audit remains advisory and file-level; it does not enforce writes or prove semantic conformance inside a declared file.
