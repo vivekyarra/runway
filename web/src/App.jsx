@@ -3,6 +3,7 @@ import './App.css'
 import {
   assertHandoffAllowed,
   assertRerouteAllowed,
+  auditScope,
   buildHandoff,
   conflictsForLane,
   createLane,
@@ -85,10 +86,12 @@ function App() {
   const selectedConflicts = conflictsForLane(selectedLane.id, conflicts)
   const selectedClearance = laneClearance(selectedLane, conflicts)
   const selectedHasEvidence = Boolean(selectedLane.evidence?.length)
+  const selectedAudit = selectedLane.scopeAudit
   const selectedGrounding = scopeGrounding(selectedLane, runway.scan)
   const demoLane = runway.lanes.find((lane) => lane.id === 'tax-adjustment')
   const demoClearance = demoLane ? laneClearance(demoLane, conflicts) : null
-  const primaryConflict = conflicts.find((conflict) => conflict.severity === 'critical' || conflict.severity === 'high') ?? conflicts[0]
+  const blockingConflict = conflicts.find((conflict) => conflict.severity === 'critical' || conflict.severity === 'high')
+  const primaryConflict = blockingConflict ?? conflicts[0]
 
   const notify = (message) => {
     setToast(message)
@@ -112,7 +115,7 @@ function App() {
       const reservation = reserveLaneState(targetLane, conflicts)
       updateLane(
         targetLane.id,
-        (lane) => ({ ...lane, status: reservation.status }),
+        (lane) => ({ ...lane, status: reservation.status, scopeAudit: null }),
         { type: reservation.status === 'holding' ? 'hold' : 'launch', lane: targetLane.id, text: `${targetLane.agent} ${reservation.status === 'holding' ? 'was held for a collision.' : 'received clearance.'}` },
       )
       notify(reservation.status === 'holding'
@@ -189,6 +192,35 @@ function App() {
     notify('Portable Runway state exported.')
   }
 
+  const auditLane = (targetLane = selectedLane) => {
+    try {
+      if (targetLane.status !== 'airborne') {
+        throw new Error(`Only an airborne lane can audit changed files; ${targetLane.id} is ${targetLane.status}.`)
+      }
+      if (!targetLane.changedFiles?.length) {
+        notify('Run the CLI scope audit in the agent worktree before handoff.')
+        return
+      }
+      const scopeAudit = auditScope(targetLane, targetLane.changedFiles, { source: 'bundled fixture diff snapshot' })
+      updateLane(
+        targetLane.id,
+        (lane) => ({ ...lane, scopeAudit }),
+        {
+          type: scopeAudit.passed ? 'audit' : 'hold',
+          lane: targetLane.id,
+          text: scopeAudit.passed
+            ? `${targetLane.agent} matched the fixture diff to the declared lane.`
+            : `${targetLane.agent} exposed changed-file drift outside the declared lane.`,
+        },
+      )
+      notify(scopeAudit.passed
+        ? 'Diff audit passed: every changed file stayed inside the declared lane.'
+        : `Diff audit failed: ${scopeAudit.unexpectedFiles.join(', ')} was outside the lane.`)
+    } catch (error) {
+      notify(error.message)
+    }
+  }
+
   const importState = async (event) => {
     const [file] = event.target.files ?? []
     if (!file) return
@@ -225,14 +257,17 @@ function App() {
     setSelectedId(demoLane.id)
     if (demoClearance?.state === 'hold') rerouteLane(demoLane)
     else if (demoLane.status === 'queued') reserveLane(demoLane)
+    else if (demoLane.status === 'airborne' && !demoLane.scopeAudit) auditLane(demoLane)
     else if (demoLane.status === 'airborne') createHandoff(demoLane)
     else resetDemo()
   }
 
   const demoStep = demoLane?.status === 'handoff'
-    ? 4
-    : demoLane?.status === 'airborne'
-      ? 3
+    ? 5
+    : demoLane?.status === 'airborne' && demoLane.scopeAudit?.passed
+      ? 4
+      : demoLane?.status === 'airborne'
+        ? 3
       : demoLane?.status === 'queued' && demoClearance?.state !== 'hold'
         ? 2
         : 1
@@ -241,8 +276,10 @@ function App() {
     : demoStep === 2
       ? 'Reserve clear lane'
       : demoStep === 3
-        ? 'Create verified handoff'
-        : 'Replay interception'
+        ? 'Audit changed files'
+        : demoStep === 4
+          ? 'Create verified handoff'
+          : 'Replay interception'
 
   const addLane = (event) => {
     event.preventDefault()
@@ -314,7 +351,7 @@ function App() {
             <div className="protocol-icon"><Icon name="bolt" size={17} /></div>
             <div>
               <strong>Agent protocol</strong>
-              <p>Reserve. Respect holds. Attach proof. Hand off.</p>
+              <p>Declare. Reserve. Prove the diff. Hand off.</p>
             </div>
           </div>
 
@@ -326,9 +363,9 @@ function App() {
         <main className="main-content">
           <section className="hero-panel">
             <div>
-              <div className="eyebrow eyebrow--lime">PRE-EDIT INTERCEPTION / {runway.repo.name.toUpperCase()}</div>
-              <h1>Stop two agents from changing the same behavior.</h1>
-              <p>Runway compares declared files, exported symbols, contracts, and scanned dependency edges—then names the exact reason an agent should hold before code diverges.</p>
+              <div className="eyebrow eyebrow--lime">CODE SCOPE CONTRACT / {runway.repo.name.toUpperCase()}</div>
+              <h1>Declare before code. Prove the diff after.</h1>
+              <p>Runway stops parallel agents from duplicating the same change before they start, then checks that each Git diff stayed inside its declared lane before handoff.</p>
             </div>
             <div className="hero-badge">
               <span className="hero-badge__ring" style={{ '--clearance': `${metrics.confidence}%` }}><span /></span>
@@ -336,10 +373,10 @@ function App() {
             </div>
           </section>
 
-          <section className="intercept-strip" aria-label="Current collision interception">
+          <section className={`intercept-strip ${blockingConflict ? 'intercept-strip--hold' : primaryConflict ? 'intercept-strip--caution' : 'intercept-strip--clear'}`} aria-label="Current collision interception">
             <div className="intercept-intro">
               <span className="intercept-pulse" />
-              <div><span>LIVE DECISION</span><strong>{primaryConflict ? '1 lane held before edit' : 'Airspace clear'}</strong></div>
+              <div><span>LIVE DECISION</span><strong>{blockingConflict ? '1 lane held before edit' : primaryConflict ? 'Dependency caution only' : 'Airspace clear'}</strong></div>
             </div>
             {(primaryConflict?.evidence ?? []).slice(0, 3).map((item) => (
               <div className="intercept-proof" key={item.kind}><span>{item.kind}</span><code>{item.values[0]}</code></div>
@@ -350,13 +387,13 @@ function App() {
           <section className={`guided-demo guided-demo--step-${demoStep}`} aria-label="45 second guided demo">
             <div className="guided-demo__copy">
               <span className="eyebrow eyebrow--lime">45-SECOND JUDGE PATH</span>
-              <strong>{demoStep === 1 ? 'Runway caught three matching declarations.' : demoStep === 2 ? 'The direct overlap is gone. Recheck passed.' : demoStep === 3 ? 'The lane is isolated and airborne.' : 'Collision avoided. Evidence preserved.'}</strong>
-              <p>{demoStep === 1 ? 'Pricing already owns the shared behavior, so Sol cannot start yet.' : demoStep === 2 ? 'Sol now owns only the tax module and tax-adjustment contract.' : demoStep === 3 ? 'Turn the recorded fixture test into a structured receipt.' : 'The two agents can continue independently with an auditable handoff.'}</p>
+              <strong>{demoStep === 1 ? 'Runway caught three matching declarations.' : demoStep === 2 ? 'The direct overlap is gone. Recheck passed.' : demoStep === 3 ? 'The lane is isolated and airborne.' : demoStep === 4 ? 'The changed files stayed inside the lane.' : 'Collision avoided. Scope and evidence preserved.'}</strong>
+              <p>{demoStep === 1 ? 'Pricing already owns the shared behavior, so Sol cannot start yet.' : demoStep === 2 ? 'Sol now owns only the tax module and tax-adjustment contract.' : demoStep === 3 ? 'Compare the recorded fixture diff with the file boundary Sol declared.' : demoStep === 4 ? 'Now turn diff conformance and the focused test into one handoff receipt.' : 'The two agents can continue independently with an auditable scope contract.'}</p>
             </div>
-            <div className="guided-demo__progress" aria-label={`Demo step ${demoStep} of 4`}>
-              {[1, 2, 3, 4].map((step) => <span key={step} className={step <= demoStep ? 'is-complete' : ''}>{step}</span>)}
+            <div className="guided-demo__progress" aria-label={`Demo step ${demoStep} of 5`}>
+              {[1, 2, 3, 4, 5].map((step) => <span key={step} className={step <= demoStep ? 'is-complete' : ''}>{step}</span>)}
             </div>
-            <button className={`button ${demoStep === 4 ? 'button--ghost' : 'button--solid'}`} onClick={advanceGuidedDemo}>{demoAction}<Icon name="arrow" size={16} /></button>
+            <button className={`button ${demoStep === 5 ? 'button--ghost' : 'button--solid'}`} onClick={advanceGuidedDemo}>{demoAction}<Icon name="arrow" size={16} /></button>
           </section>
 
           <section className="metric-grid" aria-label="Runway metrics">
@@ -471,9 +508,15 @@ function App() {
                   <span className="action-note">Lane is airborne in its declared scope.</span>
                 )}
                 {selectedLane.status === 'airborne' && selectedClearance.state !== 'hold' && (
-                  selectedHasEvidence ? (
+                  !selectedAudit ? (
+                    selectedLane.changedFiles?.length
+                      ? <button className="button button--ghost" onClick={() => auditLane()}><Icon name="check" size={16} />Audit changed files</button>
+                      : <span className="action-note">Run the CLI Git diff audit before handoff.</span>
+                  ) : !selectedAudit.passed ? (
+                    <span className="action-note">Scope drift found. Reroute or revert the unexpected files.</span>
+                  ) : selectedHasEvidence ? (
                     <button className="button button--ghost" onClick={() => createHandoff()}><Icon name="check" size={16} />Create handoff</button>
-                  ) : <span className="action-note">Attach operator-provided evidence with the CLI before handoff.</span>
+                  ) : <span className="action-note">Attach operator-provided test evidence before handoff.</span>
                 )}
               </div>
             </article>
@@ -490,6 +533,16 @@ function App() {
                   ))}
                 </div>
               ) : <div className="no-risk"><Icon name="check" size={20} />No declared collision evidence.</div>}
+              <div className={`scope-audit-row ${selectedAudit?.passed ? 'scope-audit-row--passed' : selectedAudit ? 'scope-audit-row--failed' : ''}`}>
+                <span className="evidence-check"><Icon name={selectedAudit?.passed ? 'check' : 'branch'} size={13} /></span>
+                <div>
+                  <strong>{selectedAudit ? (selectedAudit.passed ? 'DIFF CONFORMANT' : 'SCOPE DRIFT') : 'DIFF AUDIT REQUIRED'}</strong>
+                  <p>{selectedAudit
+                    ? `${selectedAudit.inScopeFiles.length}/${selectedAudit.changedFiles.length} changed files inside the declared lane${selectedAudit.unexpectedFiles.length ? `; unexpected: ${selectedAudit.unexpectedFiles.join(', ')}` : ''}.`
+                    : 'CLI reads the Git worktree; this browser demo uses a labeled fixture diff snapshot.'}</p>
+                </div>
+                {selectedAudit && <small>{selectedAudit.source}</small>}
+              </div>
               <div className="evidence-list">
                 <span className="evidence-title">ATTACHED EVIDENCE</span>
                 {selectedLane.evidence?.length ? selectedLane.evidence.map((item, index) => <div className="evidence-row" key={`${item.command}-${index}`}><span className="evidence-check"><Icon name="check" size={13} /></span><code>{item.command}</code><span>{item.result}</span><time>{item.at}</time></div>) : <div className="no-evidence">Runway records operator-provided evidence; it does not execute commands in the browser.</div>}

@@ -13,6 +13,13 @@ function makeRoot() {
   return root
 }
 
+function initGit(root) {
+  execFileSync('git', ['init'], { cwd: root, stdio: 'ignore' })
+  execFileSync('git', ['config', 'user.email', 'runway@example.test'], { cwd: root })
+  execFileSync('git', ['config', 'user.name', 'Runway Test'], { cwd: root })
+  execFileSync('git', ['config', 'core.autocrlf', 'false'], { cwd: root })
+}
+
 function removeRoot(root) {
   if (!root.startsWith(`${testsRoot}${path.sep}`)) throw new Error(`Refusing to remove unexpected test root: ${root}`)
   rmSync(root, { recursive: true, force: true })
@@ -47,6 +54,7 @@ function runAsync(_root, ...args) {
 test('CLI creates lanes, holds overlap, and persists an airborne handoff', () => {
   const root = makeRoot()
   try {
+    initGit(root)
     run(root, 'init', '--root', root)
     run(root, 'lane', 'create', '--root', root, '--id', 'pricing', '--agent', 'Theo', '--task', 'Change quote', '--files', 'src/quote.js', '--symbols', 'quoteTotal', '--contracts', 'pricing')
     const pricing = run(root, 'lane', 'reserve', '--root', root, '--id', 'pricing')
@@ -57,6 +65,8 @@ test('CLI creates lanes, holds overlap, and persists an airborne handoff', () =>
     assert.equal(reserve.lane.status, 'holding')
     assert.equal(reserve.clearance.state, 'hold')
 
+    const audit = run(root, 'lane', 'audit', '--root', root, '--id', 'pricing')
+    assert.equal(audit.audit.passed, true)
     const handoff = run(root, 'lane', 'handoff', '--root', root, '--id', 'pricing', '--evidence', 'node --test', '--result', 'passing')
     assert.equal(handoff.ok, true)
     assert.equal(handoff.handoff.evidence[0].command, 'node --test')
@@ -68,6 +78,7 @@ test('CLI creates lanes, holds overlap, and persists an airborne handoff', () =>
 test('CLI rejects unscoped lanes and invalid transitions without mutating state', () => {
   const root = makeRoot()
   try {
+    initGit(root)
     run(root, 'init', '--root', root)
     assert.throws(
       () => run(root, 'lane', 'create', '--root', root, '--id', 'empty', '--agent', 'Mira', '--task', 'No scope'),
@@ -83,6 +94,11 @@ test('CLI rejects unscoped lanes and invalid transitions without mutating state'
     assert.equal(beforeReserve.lanes[0].status, 'queued')
 
     run(root, 'lane', 'reserve', '--root', root, '--id', 'clear')
+    assert.throws(
+      () => run(root, 'lane', 'handoff', '--root', root, '--id', 'clear', '--evidence', 'node --test'),
+      /Audit the actual changed files/,
+    )
+    run(root, 'lane', 'audit', '--root', root, '--id', 'clear')
     run(root, 'lane', 'handoff', '--root', root, '--id', 'clear', '--evidence', 'node --test')
     assert.throws(
       () => run(root, 'lane', 'reserve', '--root', root, '--id', 'clear'),
@@ -103,6 +119,42 @@ test('CLI accepts an empty reroute value without crashing and keeps remaining sc
     assert.deepEqual(reroute.lane.contracts, [])
     assert.deepEqual(reroute.lane.files, ['src/tax.js'])
     assert.equal(reroute.lane.status, 'queued')
+  } finally {
+    removeRoot(root)
+  }
+})
+
+test('CLI audits the real Git worktree and blocks drift before handoff', () => {
+  const root = makeRoot()
+  try {
+    mkdirSync(path.join(root, 'src'), { recursive: true })
+    writeFileSync(path.join(root, 'src', 'owned.js'), 'export const owned = 0\n')
+    writeFileSync(path.join(root, 'src', 'drift.js'), 'export const drift = 0\n')
+    initGit(root)
+    execFileSync('git', ['add', '.'], { cwd: root })
+    execFileSync('git', ['commit', '-m', 'fixture baseline'], { cwd: root, stdio: 'ignore' })
+
+    run(root, 'init', '--root', root)
+    run(root, 'lane', 'create', '--root', root, '--id', 'owned', '--agent', 'Mira', '--task', 'Change owned file', '--files', 'src/owned.js')
+    run(root, 'lane', 'reserve', '--root', root, '--id', 'owned')
+    writeFileSync(path.join(root, 'src', 'owned.js'), 'export const owned = 1\n')
+    writeFileSync(path.join(root, 'src', 'drift.js'), 'export const drift = 1\n')
+
+    const failed = run(root, 'lane', 'audit', '--root', root, '--id', 'owned')
+    assert.equal(failed.ok, false)
+    assert.equal(failed.audit.source, 'git worktree')
+    assert.deepEqual(failed.audit.unexpectedFiles, ['src/drift.js'])
+    assert.throws(
+      () => run(root, 'lane', 'handoff', '--root', root, '--id', 'owned', '--evidence', 'node --test'),
+      /src\/drift\.js/,
+    )
+
+    writeFileSync(path.join(root, 'src', 'drift.js'), 'export const drift = 0\n')
+    const passed = run(root, 'lane', 'audit', '--root', root, '--id', 'owned')
+    assert.equal(passed.ok, true)
+    assert.deepEqual(passed.audit.changedFiles, ['src/owned.js'])
+    const handoff = run(root, 'lane', 'handoff', '--root', root, '--id', 'owned', '--evidence', 'node --test', '--result', 'passing')
+    assert.equal(handoff.handoff.scopeAudit.passed, true)
   } finally {
     removeRoot(root)
   }

@@ -1,11 +1,11 @@
 ---
 name: runway
-description: Coordinate two or more coding agents working in the same JavaScript or TypeScript repository. Before editing, declare bounded files, exported symbols, and behavioral contracts; inspect clearance, honor holds, run real verification, and leave an evidence-backed handoff.
+description: Coordinate two or more coding agents working in the same JavaScript or TypeScript repository. Declare bounded scope before editing, honor holds, check the actual Git changed-file set against that scope, run real verification, and leave an evidence-backed handoff.
 ---
 
 # Runway
 
-Runway is a local, cooperative pre-edit clearance protocol. It compares lane declarations; it is not an agent runtime, write lock, merge solver, or proof of correctness.
+Runway is a local, cooperative code-scope contract: declare before code, then prove the changed files stayed inside the lane before handoff. It is not an agent runtime, write lock, merge solver, or proof of correctness.
 
 Set RUNWAY_CLI to the absolute path of the Runway checkout before using this skill from another repository:
 
@@ -61,10 +61,20 @@ Use node $env:RUNWAY_CLI for every command below. It only writes the target repo
 ## During and after work
 
 1. Run focused verification in the target repository.
-2. Hand off only an airborne lane, with the command you actually ran and its observed result.
+2. Audit the current Git worktree before handoff. Run this in the lane's dedicated, clean worktree so unrelated pre-existing changes do not contaminate the result. Runway reads staged, unstaged, and untracked paths, ignores its own `.runway` state, and blocks handoff if any changed file falls outside the declaration.
+
+   ~~~powershell
+   node $env:RUNWAY_CLI lane audit --root . --id <lane>
+   ~~~
+
+   If the audit reports `unexpectedFiles`, revert or coordinate those edits, or reroute and reserve a truthful expanded declaration before continuing. Reroute and reserve both invalidate an older audit.
+
+3. Hand off only an airborne lane with a passing, current scope audit and the command you actually ran with its observed result.
 
    ~~~powershell
    node $env:RUNWAY_CLI lane handoff --root . --id <lane> --evidence "<command actually run>" --result "passing" --note "<remaining risk or next step>"
    ~~~
 
-3. Report the lane ID, verification command and outcome, and any remaining risk in the final task summary.
+4. Report the lane ID, diff-audit result, verification command and outcome, and any remaining risk in the final task summary.
+
+The audit is file-level conformance, not semantic enforcement. It catches undeclared changed paths; it cannot prove that edits inside an allowed file matched the declared symbol or contract, and a process can still ignore the protocol.

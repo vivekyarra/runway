@@ -1,5 +1,6 @@
 #!/usr/bin/env node
 import { closeSync, existsSync, mkdirSync, openSync, readFileSync, readdirSync, renameSync, statSync, unlinkSync, writeFileSync } from 'node:fs'
+import { execFileSync } from 'node:child_process'
 import { fileURLToPath } from 'node:url'
 import path from 'node:path'
 import process from 'node:process'
@@ -7,6 +8,7 @@ import {
   assertDeclaredScope,
   assertHandoffAllowed,
   assertRerouteAllowed,
+  auditScope,
   buildHandoff,
   createLane,
   deriveConflicts,
@@ -122,7 +124,7 @@ async function acquireStateLock(root) {
       }
     } catch (error) {
       if (descriptor !== undefined) closeSync(descriptor)
-      const lockExists = error?.code === 'EEXIST' || (error?.code === 'EPERM' && existsSync(target))
+      const lockExists = error?.code === 'EEXIST' || error?.code === 'EPERM'
       if (!lockExists) throw error
 
       const metadata = readLockMetadata(target)
@@ -256,6 +258,31 @@ function resolveRoot(options) {
   return path.resolve(options.root && options.root !== true ? options.root : process.cwd())
 }
 
+function gitPaths(root, args) {
+  const output = execFileSync('git', ['-C', root, '-c', 'core.quotepath=false', ...args], {
+    encoding: 'utf8',
+    stdio: ['ignore', 'pipe', 'pipe'],
+  })
+  return output.split(/\r?\n/).map((item) => item.trim()).filter(Boolean)
+}
+
+export function changedGitFiles(root) {
+  try {
+    gitPaths(root, ['rev-parse', '--is-inside-work-tree'])
+    const paths = [
+      ...gitPaths(root, ['diff', '--name-only', '--relative', '--no-renames', '--', '.']),
+      ...gitPaths(root, ['diff', '--cached', '--name-only', '--relative', '--no-renames', '--', '.']),
+      ...gitPaths(root, ['ls-files', '--others', '--exclude-standard', '--', '.']),
+    ]
+    return [...new Set(paths
+      .map((item) => item.replace(/\\/g, '/'))
+      .filter((item) => item && item !== '.runway' && !item.startsWith('.runway/')))]
+      .sort((left, right) => left.localeCompare(right))
+  } catch {
+    throw new Error('Scope audit requires a Git worktree.')
+  }
+}
+
 function commandHelp() {
   process.stdout.write(`
 Runway - local air traffic control for coding agents
@@ -267,9 +294,10 @@ Usage:
   node bin/runway.mjs lane create --root <repo> --id <lane> --agent <owner> --task <text> [--files a,b] [--symbols a,b] [--contracts a,b]
   node bin/runway.mjs lane reserve --root <repo> --id <lane>
   node bin/runway.mjs lane reroute --root <repo> --id <lane> [--files a,b] [--symbols a,b] [--contracts a,b]
+  node bin/runway.mjs lane audit --root <repo> --id <lane>
   node bin/runway.mjs lane handoff --root <repo> --id <lane> --evidence <command> [--result passing] [--note <text>]
 
-  Runway is intentionally heuristic: clearance compares declared lane scope. A persisted scan grounds files and symbols against the repository and adds one-hop relative-import review signals; it does not infer intent or guarantee a conflict-free merge.
+  Runway is intentionally advisory: clearance compares declared lane scope, and audit checks the current Git changed-file set before handoff. It does not prevent writes, infer intent, or guarantee a conflict-free merge.
 `)
 }
 
@@ -313,6 +341,7 @@ function commandStatus(options) {
       status: lane.status,
       clearance: laneClearance(lane, conflicts),
       grounding: scopeGrounding(lane, state.scan),
+      scopeAudit: lane.scopeAudit ?? null,
     })),
     conflicts,
     state: statePath(root),
@@ -350,6 +379,7 @@ async function commandLane(action, options) {
     if (action === 'reserve') {
       const reservation = reserveLaneState(lane, conflicts)
       lane.status = reservation.status
+      lane.scopeAudit = null
       lane.updatedAt = now()
       addActivity(state, lane.status === 'holding' ? 'hold' : 'launch', lane.id, `${lane.agent} ${lane.status === 'holding' ? 'was held for a collision' : 'received clearance'}.`)
       saveState(root, state)
@@ -367,11 +397,35 @@ async function commandLane(action, options) {
       if (contracts !== undefined) lane.contracts = contracts
       assertDeclaredScope(lane)
       lane.status = 'queued'
+      lane.scopeAudit = null
       lane.updatedAt = now()
       addActivity(state, 'reroute', lane.id, `${lane.agent} declared a new scope.`)
       saveState(root, state)
       const nextConflicts = deriveConflicts(state.lanes, state.scan)
       print({ ok: true, lane, clearance: laneClearance(lane, nextConflicts), grounding: scopeGrounding(lane, state.scan), conflicts: nextConflicts.filter((item) => item.laneIds.includes(lane.id)) })
+      return
+    }
+
+    if (action === 'audit') {
+      if (lane.status !== 'airborne') {
+        throw new Error(`Only an airborne lane can audit changed files; ${lane.id} is ${lane.status}.`)
+      }
+      const changedFiles = changedGitFiles(root)
+      lane.scopeAudit = auditScope(lane, changedFiles, {
+        source: 'git worktree',
+        auditedAt: now(),
+      })
+      lane.updatedAt = now()
+      addActivity(
+        state,
+        lane.scopeAudit.passed ? 'audit' : 'hold',
+        lane.id,
+        lane.scopeAudit.passed
+          ? `${lane.agent} proved the changed files stayed inside the declared lane.`
+          : `${lane.agent} exposed changed-file drift outside the declared lane.`,
+      )
+      saveState(root, state)
+      print({ ok: lane.scopeAudit.passed, lane: lane.id, audit: lane.scopeAudit, state: statePath(root) })
       return
     }
 

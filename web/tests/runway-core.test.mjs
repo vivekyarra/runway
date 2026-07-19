@@ -3,6 +3,8 @@ import test from 'node:test'
 import { fileURLToPath } from 'node:url'
 import {
   assertHandoffAllowed,
+  assertScopeAudit,
+  auditScope,
   buildDependencyEdges,
   buildHandoff,
   createLane,
@@ -193,10 +195,45 @@ test('requires declared scope and valid transitions before reserve or handoff', 
 
   const lane = createLane({ id: 'clear', agent: 'Mira', task: 'Clear work', status: 'queued', files: ['src/clear.js'] })
   const reservation = reserveLaneState(lane, [])
+  const audited = { ...lane, status: 'airborne', scopeAudit: auditScope(lane, ['src/clear.js']) }
   assert.equal(reservation.status, 'airborne')
-  assert.doesNotThrow(() => assertHandoffAllowed({ ...lane, status: 'airborne' }, []))
+  assert.throws(() => assertHandoffAllowed({ ...lane, status: 'airborne' }, []), /Audit the actual changed files/)
+  assert.doesNotThrow(() => assertHandoffAllowed(audited, []))
   assert.throws(() => assertHandoffAllowed({ ...lane, status: 'holding' }, []), /Only an airborne lane/)
   assert.throws(() => reserveLaneState({ ...lane, status: 'handoff' }, []), /Only a queued lane/)
+})
+
+test('audits actual changed files against the declared file boundary', () => {
+  const lane = createLane({
+    id: 'tax', agent: 'Sol', task: 'Adjust tax', status: 'airborne',
+    files: ['src/tax/adjustments.js'], symbols: ['calculateTaxAdjustment'], contracts: ['tax-adjustment'],
+  })
+  const conformant = auditScope(lane, ['.\\src\\tax\\adjustments.js'], { source: 'git worktree' })
+  const drifted = auditScope(lane, ['src/tax/adjustments.js', 'src/quote.js'], { source: 'git worktree' })
+
+  assert.equal(conformant.passed, true)
+  assert.deepEqual(conformant.inScopeFiles, ['src/tax/adjustments.js'])
+  assert.equal(drifted.passed, false)
+  assert.deepEqual(drifted.unexpectedFiles, ['src/quote.js'])
+  assert.throws(() => assertScopeAudit({ ...lane, scopeAudit: drifted }), /src\/quote\.js/)
+})
+
+test('invalidates a scope audit when the declared file boundary changes', () => {
+  const lane = createLane({ id: 'copy', agent: 'Ada', task: 'Edit copy', status: 'airborne', files: ['src/copy.js'] })
+  const scopeAudit = auditScope(lane, ['src/copy.js'])
+
+  assert.throws(
+    () => assertScopeAudit({ ...lane, files: ['src/copy.js', 'src/other.js'], scopeAudit }),
+    /Declared files changed after the last scope audit/,
+  )
+})
+
+test('requires a declared file boundary for a handoff audit', () => {
+  const lane = createLane({ id: 'symbol-only', agent: 'Theo', task: 'Review symbol', status: 'airborne', symbols: ['quoteTotal'] })
+  const scopeAudit = auditScope(lane, [])
+
+  assert.equal(scopeAudit.passed, false)
+  assert.throws(() => assertScopeAudit({ ...lane, scopeAudit }), /Declare at least one file/)
 })
 
 test('makes a handoff receipt from declared scope and evidence', () => {
@@ -205,11 +242,13 @@ test('makes a handoff receipt from declared scope and evidence', () => {
     files: ['src/checkout/CheckoutForm.jsx'], symbols: ['CheckoutForm'], contracts: ['submit-order'],
     evidence: [{ command: 'node --test', result: 'passing' }],
   })
+  lane.scopeAudit = auditScope(lane, ['src/checkout/CheckoutForm.jsx'], { source: 'git worktree' })
   const receipt = buildHandoff(lane, [])
 
   assert.equal(receipt.owner, 'Mira')
   assert.deepEqual(receipt.scope.symbols, ['CheckoutForm'])
   assert.equal(receipt.evidence[0].result, 'passing')
+  assert.equal(receipt.scopeAudit.passed, true)
   assert.equal(receipt.knownRisk.length, 0)
 })
 

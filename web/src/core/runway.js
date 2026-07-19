@@ -247,6 +247,50 @@ export function assertRerouteAllowed(lane) {
   }
 }
 
+export function auditScope(lane = {}, changedFiles = [], metadata = {}) {
+  const declaredFiles = cleanList(lane.files, normalizeFile)
+  const observedFiles = cleanList(changedFiles, normalizeFile)
+  const declared = new Set(declaredFiles)
+  const inScopeFiles = observedFiles.filter((file) => declared.has(file))
+  const unexpectedFiles = observedFiles.filter((file) => !declared.has(file))
+  const passed = declaredFiles.length > 0 && unexpectedFiles.length === 0
+
+  return {
+    passed,
+    state: passed ? 'conformant' : 'drifted',
+    source: metadata.source || 'recorded changed-file set',
+    declaredFiles,
+    changedFiles: observedFiles,
+    inScopeFiles,
+    unexpectedFiles,
+    auditedAt: metadata.auditedAt || new Date().toISOString(),
+  }
+}
+
+function sameFileSet(left = [], right = []) {
+  const leftFiles = cleanList(left, normalizeFile).sort()
+  const rightFiles = cleanList(right, normalizeFile).sort()
+  return leftFiles.length === rightFiles.length && leftFiles.every((file, index) => file === rightFiles[index])
+}
+
+export function assertScopeAudit(lane = {}) {
+  const audit = lane.scopeAudit
+  if (!audit) {
+    throw new Error('Audit the actual changed files before creating a handoff.')
+  }
+  if (!sameFileSet(lane.files, audit.declaredFiles)) {
+    throw new Error('Declared files changed after the last scope audit; audit the lane again.')
+  }
+  if (!audit.declaredFiles?.length) {
+    throw new Error('Declare at least one file to create a changed-file handoff receipt.')
+  }
+  if (!audit.passed) {
+    const unexpected = audit.unexpectedFiles?.length ? ` Unexpected files: ${audit.unexpectedFiles.join(', ')}.` : ''
+    throw new Error(`Changed files drifted outside the declared lane.${unexpected}`)
+  }
+  return audit
+}
+
 export function assertHandoffAllowed(lane, conflicts = []) {
   assertDeclaredScope(lane)
   if (lane.status !== 'airborne') {
@@ -257,6 +301,7 @@ export function assertHandoffAllowed(lane, conflicts = []) {
   if (clearance.state === 'hold' || clearance.state === 'blocked') {
     throw new Error('Resolve the hold before creating a handoff.')
   }
+  assertScopeAudit(lane)
   return clearance
 }
 
@@ -274,6 +319,7 @@ export function rerouteScope(lane, conflicts = []) {
     files: lane.files.filter((file) => !sharedFiles.has(normalizeFile(file))),
     symbols: lane.symbols.filter((symbol) => !sharedSymbols.has(normalizeSymbol(symbol))),
     contracts: lane.contracts.filter((contract) => !sharedContracts.has(normalizeText(contract))),
+    scopeAudit: null,
   }
 }
 
@@ -322,6 +368,8 @@ export function createLane(input = {}) {
     symbols: cleanList(input.symbols, normalizeSymbol),
     contracts: cleanList(input.contracts, normalizeText),
     evidence: input.evidence ?? [],
+    changedFiles: cleanList(input.changedFiles, normalizeFile),
+    scopeAudit: input.scopeAudit ?? null,
     note: input.note || '',
     createdAt: input.createdAt || now,
     updatedAt: now,
@@ -342,6 +390,7 @@ export function buildHandoff(lane, conflicts = []) {
       contracts: lane.contracts,
     },
     evidence: lane.evidence ?? [],
+    scopeAudit: lane.scopeAudit ?? null,
     knownRisk: clearance.conflict
       ? clearance.conflict.evidence.map((item) => `${item.kind}: ${item.values.join(', ')}`)
       : [],

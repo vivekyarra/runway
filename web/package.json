@@ -1,6 +1,6 @@
 {
   "name": "runway-codex-control-tower",
-  "description": "Repository-grounded pre-edit scope clearance for parallel Codex agents.",
+  "description": "A code-scope contract for parallel Codex agents: declare before code, prove the Git diff after.",
   "private": true,
   "version": "1.1.0",
   "engines": {
