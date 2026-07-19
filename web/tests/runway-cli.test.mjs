@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict'
 import { existsSync, mkdirSync, readFileSync, rmSync, utimesSync, writeFileSync } from 'node:fs'
-import { execFileSync, spawn } from 'node:child_process'
+import { execFileSync, spawn, spawnSync } from 'node:child_process'
 import path from 'node:path'
 import process from 'node:process'
 import test from 'node:test'
@@ -51,6 +51,19 @@ function runAsync(_root, ...args) {
   })
 }
 
+function runFailure(_root, ...args) {
+  const result = spawnSync(process.execPath, ['bin/runway.mjs', ...args], {
+    cwd: process.cwd(),
+    encoding: 'utf8',
+    stdio: ['ignore', 'pipe', 'pipe'],
+  })
+  assert.notEqual(result.status, 0)
+  return {
+    output: result.stdout ? JSON.parse(result.stdout) : null,
+    stderr: result.stderr,
+  }
+}
+
 test('CLI creates lanes, holds overlap, and persists an airborne handoff', () => {
   const root = makeRoot()
   try {
@@ -65,11 +78,11 @@ test('CLI creates lanes, holds overlap, and persists an airborne handoff', () =>
     assert.equal(reserve.lane.status, 'holding')
     assert.equal(reserve.clearance.state, 'hold')
 
-    const audit = run(root, 'lane', 'audit', '--root', root, '--id', 'pricing')
-    assert.equal(audit.audit.passed, true)
-    const handoff = run(root, 'lane', 'handoff', '--root', root, '--id', 'pricing', '--evidence', 'node --test', '--result', 'passing')
+    const handoff = run(root, 'lane', 'verify', '--root', root, '--id', 'pricing', '--command', 'node -e "console.log(\'pricing verified\')"')
     assert.equal(handoff.ok, true)
-    assert.equal(handoff.handoff.evidence[0].command, 'node --test')
+    assert.equal(handoff.audit.passed, true)
+    assert.equal(handoff.handoff.evidence[0].source, 'runway-executed')
+    assert.equal(handoff.handoff.evidence[0].result, 'passing')
   } finally {
     removeRoot(root)
   }
@@ -87,8 +100,8 @@ test('CLI rejects unscoped lanes and invalid transitions without mutating state'
 
     run(root, 'lane', 'create', '--root', root, '--id', 'clear', '--agent', 'Mira', '--task', 'Clear scope', '--files', 'src/clear.js')
     assert.throws(
-      () => run(root, 'lane', 'handoff', '--root', root, '--id', 'clear', '--evidence', 'node --test'),
-      /Only an airborne lane can create a handoff/,
+      () => run(root, 'lane', 'verify', '--root', root, '--id', 'clear', '--command', 'node -e "process.exit(0)"'),
+      /Only an airborne lane can run verified handoff evidence/,
     )
     const beforeReserve = JSON.parse(readFileSync(path.join(root, '.runway', 'state.json'), 'utf8'))
     assert.equal(beforeReserve.lanes[0].status, 'queued')
@@ -96,10 +109,9 @@ test('CLI rejects unscoped lanes and invalid transitions without mutating state'
     run(root, 'lane', 'reserve', '--root', root, '--id', 'clear')
     assert.throws(
       () => run(root, 'lane', 'handoff', '--root', root, '--id', 'clear', '--evidence', 'node --test'),
-      /Audit the actual changed files/,
+      /Manual CLI handoff evidence is disabled/,
     )
-    run(root, 'lane', 'audit', '--root', root, '--id', 'clear')
-    run(root, 'lane', 'handoff', '--root', root, '--id', 'clear', '--evidence', 'node --test')
+    run(root, 'lane', 'verify', '--root', root, '--id', 'clear', '--command', 'node -e "process.exit(0)"')
     assert.throws(
       () => run(root, 'lane', 'reserve', '--root', root, '--id', 'clear'),
       /Only a queued lane can be reserved/,
@@ -144,17 +156,17 @@ test('CLI audits the real Git worktree and blocks drift before handoff', () => {
     assert.equal(failed.ok, false)
     assert.equal(failed.audit.source, 'git worktree')
     assert.deepEqual(failed.audit.unexpectedFiles, ['src/drift.js'])
-    assert.throws(
-      () => run(root, 'lane', 'handoff', '--root', root, '--id', 'owned', '--evidence', 'node --test'),
-      /src\/drift\.js/,
-    )
+    const driftedVerification = runFailure(root, 'lane', 'verify', '--root', root, '--id', 'owned', '--command', 'node -e "process.exit(0)"')
+    assert.equal(driftedVerification.output.ok, false)
+    assert.deepEqual(driftedVerification.output.audit.unexpectedFiles, ['src/drift.js'])
 
     writeFileSync(path.join(root, 'src', 'drift.js'), 'export const drift = 0\n')
     const passed = run(root, 'lane', 'audit', '--root', root, '--id', 'owned')
     assert.equal(passed.ok, true)
     assert.deepEqual(passed.audit.changedFiles, ['src/owned.js'])
-    const handoff = run(root, 'lane', 'handoff', '--root', root, '--id', 'owned', '--evidence', 'node --test', '--result', 'passing')
+    const handoff = run(root, 'lane', 'verify', '--root', root, '--id', 'owned', '--command', 'node -e "console.log(\'scope verified\')"')
     assert.equal(handoff.handoff.scopeAudit.passed, true)
+    assert.equal(handoff.handoff.evidence.at(-1).source, 'runway-executed')
   } finally {
     removeRoot(root)
   }
@@ -185,6 +197,43 @@ test('CLI persists scan grounding and returns dependency-based clearance evidenc
       values: ['src/checkout/CheckoutForm.jsx -> src/quote.js'],
       weight: 'repository',
     }])
+  } finally {
+    removeRoot(root)
+  }
+})
+
+test('CLI executes evidence, preserves a failed attempt, and hands off only after a passing command', () => {
+  const root = makeRoot()
+  try {
+    mkdirSync(path.join(root, 'src'), { recursive: true })
+    writeFileSync(path.join(root, 'src', 'owned.js'), 'export const owned = 0\n')
+    initGit(root)
+    execFileSync('git', ['add', '.'], { cwd: root })
+    execFileSync('git', ['commit', '-m', 'baseline'], { cwd: root, stdio: 'ignore' })
+    run(root, 'init', '--root', root)
+    run(root, 'lane', 'create', '--root', root, '--id', 'owned', '--agent', 'Mira', '--task', 'Change owned file', '--files', 'src/owned.js')
+    run(root, 'lane', 'reserve', '--root', root, '--id', 'owned')
+    writeFileSync(path.join(root, 'src', 'owned.js'), 'export const owned = 1\n')
+
+    const failed = runFailure(root, 'lane', 'verify', '--root', root, '--id', 'owned', '--command', 'node -e "console.error(\'expected failure\'); process.exit(7)"')
+    assert.equal(failed.output.ok, false)
+    assert.equal(failed.output.verification.source, 'runway-executed')
+    assert.equal(failed.output.verification.exitCode, 7)
+    assert.equal(failed.output.verification.result, 'failing')
+    assert.equal(failed.output.audit.passed, true)
+    let state = JSON.parse(readFileSync(path.join(root, '.runway', 'state.json'), 'utf8'))
+    assert.equal(state.lanes[0].status, 'airborne')
+    assert.equal(state.lanes[0].evidence[0].result, 'failing')
+
+    const passed = run(root, 'lane', 'verify', '--root', root, '--id', 'owned', '--command', 'node -e "console.log(\'verified output\')"')
+    assert.equal(passed.ok, true)
+    assert.equal(passed.verification.exitCode, 0)
+    assert.equal(passed.verification.stdout.bytes > 0, true)
+    assert.match(passed.verification.stdout.sha256, /^[a-f0-9]{64}$/)
+    assert.equal(passed.audit.source, 'git worktree after runway-executed command')
+    state = JSON.parse(readFileSync(path.join(root, '.runway', 'state.json'), 'utf8'))
+    assert.equal(state.lanes[0].status, 'handoff')
+    assert.equal(state.lanes[0].evidence.length, 2)
   } finally {
     removeRoot(root)
   }

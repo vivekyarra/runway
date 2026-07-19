@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 import { closeSync, existsSync, mkdirSync, openSync, readFileSync, readdirSync, renameSync, statSync, unlinkSync, writeFileSync } from 'node:fs'
-import { execFileSync } from 'node:child_process'
+import { execFileSync, spawnSync } from 'node:child_process'
 import { createHash } from 'node:crypto'
 import { fileURLToPath } from 'node:url'
 import path from 'node:path'
@@ -322,6 +322,74 @@ function sha256(value) {
   return createHash('sha256').update(value).digest('hex')
 }
 
+function parseCommandTimeout(value) {
+  if (value === undefined) return 120000
+  if (value === true) throw new Error('Missing value for --timeout-ms')
+  const timeout = Number(value)
+  if (!Number.isInteger(timeout) || timeout < 1 || timeout > 600000) {
+    throw new Error('--timeout-ms must be an integer between 1 and 600000.')
+  }
+  return timeout
+}
+
+function commandOutputProof(output = '') {
+  return {
+    bytes: Buffer.byteLength(output),
+    sha256: sha256(output),
+  }
+}
+
+function executeVerification(root, command, timeout) {
+  const started = Date.now()
+  const result = spawnSync(command, {
+    cwd: root,
+    encoding: 'utf8',
+    shell: true,
+    timeout,
+    windowsHide: true,
+  })
+  const stdout = result.stdout || ''
+  const stderr = result.stderr || ''
+  if (stdout) process.stderr.write(stdout)
+  if (stderr) process.stderr.write(stderr)
+  const timedOut = result.error?.code === 'ETIMEDOUT'
+  const exitCode = Number.isInteger(result.status) ? result.status : null
+
+  return {
+    source: 'runway-executed',
+    command,
+    result: exitCode === 0 && !timedOut && !result.error ? 'passing' : 'failing',
+    exitCode,
+    signal: result.signal || null,
+    timedOut,
+    durationMs: Date.now() - started,
+    stdout: commandOutputProof(stdout),
+    stderr: commandOutputProof(stderr),
+    at: now(),
+  }
+}
+
+function verificationSignature(lane) {
+  return sha256(JSON.stringify({
+    id: lane.id,
+    status: lane.status,
+    files: lane.files,
+    symbols: lane.symbols,
+    contracts: lane.contracts,
+  }))
+}
+
+function assertVerificationAllowed(lane, conflicts) {
+  assertDeclaredScope(lane)
+  if (lane.status !== 'airborne') {
+    throw new Error(`Only an airborne lane can run verified handoff evidence; ${lane.id} is ${lane.status}.`)
+  }
+  const clearance = laneClearance(lane, conflicts)
+  if (clearance.state === 'hold' || clearance.state === 'blocked') {
+    throw new Error('Resolve the hold before running verified handoff evidence.')
+  }
+}
+
 export function changedGitFiles(root) {
   try {
     gitPaths(root, ['rev-parse', '--is-inside-work-tree'])
@@ -352,10 +420,72 @@ Usage:
   node bin/runway.mjs lane reserve --root <repo> --id <lane>
   node bin/runway.mjs lane reroute --root <repo> --id <lane> [--files a,b] [--symbols a,b] [--contracts a,b]
   node bin/runway.mjs lane audit --root <repo> --id <lane>
-  node bin/runway.mjs lane handoff --root <repo> --id <lane> --evidence <command> [--result passing] [--note <text>]
+  node bin/runway.mjs lane verify --root <repo> --id <lane> --command <command> [--timeout-ms 120000] [--note <text>]
 
   Runway is intentionally advisory: clearance compares declared lane scope, and audit checks the current Git changed-file set before handoff. It does not prevent writes, infer intent, or guarantee a conflict-free merge.
 `)
+}
+
+async function commandLaneVerify(options) {
+  const root = resolveRoot(options)
+  const laneId = requireOption(options, 'id')
+  const command = requireOption(options, 'command')
+  const timeout = parseCommandTimeout(options['timeout-ms'])
+  let expectedSignature
+
+  await withStateLock(root, () => {
+    const state = loadState(root)
+    const lane = state.lanes.find((item) => item.id === laneId)
+    if (!lane) throw new Error(`Unknown lane: ${laneId}`)
+    const conflicts = deriveConflicts(state.lanes, state.scan)
+    assertVerificationAllowed(lane, conflicts)
+    expectedSignature = verificationSignature(lane)
+  })
+
+  const verification = executeVerification(root, command, timeout)
+  let response
+
+  await withStateLock(root, () => {
+    const state = loadState(root)
+    const lane = state.lanes.find((item) => item.id === laneId)
+    if (!lane) throw new Error(`Unknown lane after verification: ${laneId}`)
+    if (verificationSignature(lane) !== expectedSignature) {
+      throw new Error('Lane scope or status changed while the verification command was running; run verification again.')
+    }
+    const conflicts = deriveConflicts(state.lanes, state.scan)
+    assertVerificationAllowed(lane, conflicts)
+
+    lane.scopeAudit = auditScope(lane, changedGitFiles(root), {
+      source: 'git worktree after runway-executed command',
+      auditedAt: now(),
+    })
+    lane.evidence = [...(lane.evidence ?? []), verification]
+    lane.updatedAt = now()
+    if (options.note && options.note !== true) lane.note = options.note
+
+    const passed = verification.result === 'passing' && lane.scopeAudit.passed
+    if (passed) {
+      assertHandoffAllowed(lane, conflicts)
+      lane.status = 'handoff'
+      lane.handoff = buildHandoff(lane, conflicts)
+      addActivity(state, 'evidence', lane.id, `${lane.agent} passed an executed command and post-command Git audit.`)
+      response = { ok: true, verification, audit: lane.scopeAudit, handoff: lane.handoff, state: statePath(root) }
+    } else {
+      addActivity(
+        state,
+        'hold',
+        lane.id,
+        verification.result !== 'passing'
+          ? `${lane.agent} failed the executed verification command.`
+          : `${lane.agent} exposed post-command Git scope drift.`,
+      )
+      response = { ok: false, verification, audit: lane.scopeAudit, handoff: null, state: statePath(root) }
+    }
+    saveState(root, state)
+  })
+
+  print(response)
+  if (!response.ok) process.exitCode = 1
 }
 
 function commandReplay(options) {
@@ -450,6 +580,7 @@ function commandStatus(options) {
 }
 
 async function commandLane(action, options) {
+  if (action === 'verify') return commandLaneVerify(options)
   const root = resolveRoot(options)
   return withStateLock(root, () => {
     const state = loadState(root)
@@ -531,20 +662,7 @@ async function commandLane(action, options) {
     }
 
     if (action === 'handoff') {
-      assertHandoffAllowed(lane, conflicts)
-      lane.evidence = [...(lane.evidence ?? []), {
-        command: requireOption(options, 'evidence'),
-        result: options.result || 'recorded',
-        at: now(),
-      }]
-      if (options.note && options.note !== true) lane.note = options.note
-      lane.status = 'handoff'
-      lane.updatedAt = now()
-      lane.handoff = buildHandoff(lane, conflicts)
-      addActivity(state, 'evidence', lane.id, `${lane.agent} created a handoff with evidence.`)
-      saveState(root, state)
-      print({ ok: true, handoff: lane.handoff, state: statePath(root) })
-      return
+      throw new Error('Manual CLI handoff evidence is disabled. Use lane verify --command <command>; Runway will execute it and re-audit Git before handoff.')
     }
 
     throw new Error(`Unknown lane action: ${action}`)
