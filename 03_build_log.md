@@ -149,3 +149,10 @@
 - Generated a 2:31.8 ElevenLabs narration from the checked-in transcript using the existing account without a purchase. The final render includes burned-in English captions, a separate SRT, an upload thumbnail, exact YouTube copy, and a reproducible ffmpeg build script.
 - Verified the final MP4 at 1280x720 and 30 fps with H.264 video, 48 kHz mono AAC audio, 151.81-second duration, audible mean level of -16.9 dB and peak of -1.2 dB, and seven inspected frames spanning the complete timeline.
 - Re-ran the release gate after presentation changes: 39/39 tests, lint, production build, checked-in demo packaging, plugin validation, all three skill validators, and replay fingerprint verification passed locally.
+
+## 2026-07-19 - live-capture video replacement
+
+- Replaced the storyboard-style render with an isolated live Edge DevTools screencast of the actual checked-in Runway UI. Recording-only behavior drives the real guided flow, adds a human-paced cursor, hovers the controls under discussion, clicks the rendered buttons, and selects the evidence boundary and Codex-basis text; the ordinary hosted demo path is unchanged.
+- Captured a dedicated live terminal take from actual hook and CLI executions: an out-of-lane patch is denied, the declared file passes, a passing test plus undeclared Git drift refuses handoff, removing only that drift creates a verified receipt, the replay fingerprint verifies, and the complete suite reports 39 passing tests.
+- Rebuilt the 2:31.8 final as 1280x800 H.264/AAC. Each full 1280x720 capture remains uncropped; a dedicated 80-pixel bottom rail holds exactly one centered caption line per cue so captions never cover product or terminal evidence.
+- Inspected frames across the full sequence after retiming the bounded terminal segments. The narration now lands on the matching deny, drift, clean receipt, install, regression result, and live UI states without fabricating command output.

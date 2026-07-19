@@ -1,4 +1,4 @@
-import { useMemo, useRef, useState } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 import './App.css'
 import {
   assertHandoffAllowed,
@@ -75,12 +75,14 @@ function shortPath(path) {
 }
 
 function App() {
+  const recordingMode = new URLSearchParams(window.location.search).get('recording') === '1'
   const [runway, setRunway] = useState(createDemoState)
   const [selectedId, setSelectedId] = useState('tax-adjustment')
   const [composerOpen, setComposerOpen] = useState(false)
   const [replayExpanded, setReplayExpanded] = useState(false)
   const [toast, setToast] = useState('')
   const importInputRef = useRef(null)
+  const recordingStartedRef = useRef(false)
 
   const conflicts = useMemo(() => deriveConflicts(runway.lanes, runway.scan), [runway.lanes, runway.scan])
   const metrics = useMemo(() => runwayMetrics(runway), [runway])
@@ -283,6 +285,149 @@ function App() {
           ? 'Create fixture receipt'
           : 'Replay interception'
 
+  useEffect(() => {
+    if (!recordingMode || recordingStartedRef.current) return undefined
+    recordingStartedRef.current = true
+    document.body.classList.add('recording-mode')
+
+    const recordingParams = new URLSearchParams(window.location.search)
+    const requestedStart = Number(recordingParams.get('start'))
+    const requestedDelay = Number(recordingParams.get('delay'))
+    const startDelay = recordingParams.has('start') && Number.isFinite(requestedStart)
+      ? Math.max(0, requestedStart - Date.now())
+      : recordingParams.has('delay') && Number.isFinite(requestedDelay)
+        ? Math.max(0, requestedDelay)
+        : 2000
+    const timers = []
+    const at = (offset, action) => timers.push(window.setTimeout(action, startDelay + offset))
+    const cursor = document.createElement('div')
+    cursor.className = 'recording-cursor'
+    cursor.setAttribute('aria-hidden', 'true')
+    cursor.innerHTML = '<svg viewBox="0 0 28 32" focusable="false"><path d="M2 1.5 24.3 19l-10.5 1.2 5.8 9.1-4.2 2.5-5.7-9-6.3 8.3L2 1.5Z" /></svg><span />'
+    document.body.appendChild(cursor)
+
+    let cursorX = window.innerWidth - 86
+    let cursorY = window.innerHeight - 72
+    let activeAnimation = 0
+    const setCursorPosition = (x, y) => {
+      cursorX = x
+      cursorY = y
+      cursor.style.transform = `translate3d(${x}px, ${y}px, 0)`
+    }
+    setCursorPosition(cursorX, cursorY)
+
+    const targetPoint = (selector, xBias = 0.5, yBias = 0.5) => {
+      const target = document.querySelector(selector)
+      if (!target) return null
+      const bounds = target.getBoundingClientRect()
+      return {
+        target,
+        x: Math.min(window.innerWidth - 36, Math.max(24, bounds.left + bounds.width * xBias)),
+        y: Math.min(window.innerHeight - 42, Math.max(24, bounds.top + bounds.height * yBias)),
+      }
+    }
+
+    const moveCursor = (selector, options = {}) => {
+      const point = targetPoint(selector, options.xBias, options.yBias)
+      if (!point) return 0
+      const duration = options.duration ?? 920
+      const startedAt = performance.now()
+      const startX = cursorX
+      const startY = cursorY
+      const dx = point.x - startX
+      const dy = point.y - startY
+      const bend = Math.max(-54, Math.min(54, dx * 0.08 + dy * -0.05))
+      const animationId = ++activeAnimation
+      cursor.classList.add('recording-cursor--moving')
+
+      const frame = (now) => {
+        if (animationId !== activeAnimation) return
+        const linear = Math.min(1, (now - startedAt) / duration)
+        const eased = 1 - ((1 - linear) ** 3)
+        const curve = Math.sin(Math.PI * eased) * bend
+        setCursorPosition(
+          startX + (dx * eased) + curve,
+          startY + (dy * eased) - (curve * 0.24),
+        )
+        if (linear < 1) {
+          window.requestAnimationFrame(frame)
+        } else {
+          cursor.classList.remove('recording-cursor--moving')
+          point.target.classList.add('recording-target-hover')
+          timers.push(window.setTimeout(() => point.target.classList.remove('recording-target-hover'), 1250))
+        }
+      }
+      window.requestAnimationFrame(frame)
+      return duration
+    }
+
+    const clickTarget = (selector, options = {}) => {
+      const travel = moveCursor(selector, options)
+      timers.push(window.setTimeout(() => {
+        const point = targetPoint(selector, options.xBias, options.yBias)
+        if (!point) return
+        cursor.classList.add('recording-cursor--clicking')
+        point.target.classList.add('recording-target-active')
+        timers.push(window.setTimeout(() => point.target.click(), 105))
+        timers.push(window.setTimeout(() => {
+          cursor.classList.remove('recording-cursor--clicking')
+          point.target.classList.remove('recording-target-active')
+        }, 280))
+      }, travel + 170))
+    }
+
+    const selectTargetText = (selector) => {
+      const target = document.querySelector(selector)
+      if (!target) return
+      const selection = window.getSelection()
+      const range = document.createRange()
+      range.selectNodeContents(target)
+      selection.removeAllRanges()
+      selection.addRange(range)
+    }
+    const clearTextSelection = () => window.getSelection()?.removeAllRanges()
+
+    at(0, () => window.scrollTo({ top: 0, behavior: 'instant' }))
+    at(700, () => moveCursor('.hero-panel h1', { xBias: 0.7, duration: 1050 }))
+    at(5900, () => moveCursor('.hero-panel p', { xBias: 0.52, duration: 830 }))
+    at(9800, () => document.getElementById('collision-replay')?.scrollIntoView({ behavior: 'smooth', block: 'center' }))
+    at(11300, () => moveCursor('.replay-verdict', { xBias: 0.65, duration: 870 }))
+    at(15400, () => moveCursor('.replay-evidence > div:nth-child(2)', { duration: 760 }))
+    at(16500, () => selectTargetText('.replay-evidence > div:nth-child(2) code'))
+    at(19000, clearTextSelection)
+    at(19900, () => document.querySelector('.proof-boundaries')?.scrollIntoView({ behavior: 'smooth', block: 'center' }))
+    at(21300, () => moveCursor('.proof-boundaries > div:first-child', { xBias: 0.62, duration: 820 }))
+    at(22400, () => selectTargetText('.proof-boundaries > div:first-child strong'))
+    at(25300, clearTextSelection)
+    at(26000, () => moveCursor('.proof-boundaries > div:nth-child(2)', { xBias: 0.66, duration: 810 }))
+    at(27100, () => selectTargetText('.proof-boundaries > div:nth-child(2) a'))
+    at(29900, clearTextSelection)
+    at(30900, () => document.querySelector('.replay-proof__footer')?.scrollIntoView({ behavior: 'smooth', block: 'center' }))
+    at(32400, () => clickTarget('.replay-proof__footer button', { xBias: 0.54, duration: 920 }))
+    at(36900, () => document.querySelector('.guided-demo')?.scrollIntoView({ behavior: 'smooth', block: 'center' }))
+    at(38500, () => moveCursor('.intercept-strip .intercept-proof:nth-child(2)', { xBias: 0.58, duration: 780 }))
+    at(45500, () => moveCursor('[data-record-action="guided-demo"]', { xBias: 0.52, duration: 980 }))
+    at(50750, () => clickTarget('[data-record-action="guided-demo"]', { xBias: 0.52, duration: 900 }))
+    at(54500, () => moveCursor('.guided-demo__progress span:nth-child(2)', { duration: 620 }))
+    at(56500, () => clickTarget('[data-record-action="guided-demo"]', { xBias: 0.52, duration: 900 }))
+    at(64000, () => clickTarget('[data-record-action="guided-demo"]', { xBias: 0.52, duration: 940 }))
+    at(70000, () => clickTarget('[data-record-action="guided-demo"]', { xBias: 0.52, duration: 920 }))
+    at(74500, () => document.getElementById('airspace')?.scrollIntoView({ behavior: 'smooth', block: 'start' }))
+    at(76200, () => moveCursor('#airspace .lane-card:nth-of-type(2)', { xBias: 0.42, duration: 880 }))
+    at(80000, () => document.getElementById('evidence-ledger')?.scrollIntoView({ behavior: 'smooth', block: 'center' }))
+    at(81600, () => moveCursor('#evidence-ledger', { xBias: 0.7, yBias: 0.34, duration: 850 }))
+    at(85800, () => window.scrollTo({ top: 0, behavior: 'smooth' }))
+    at(87800, () => moveCursor('.brand-word', { xBias: 0.72, duration: 1120 }))
+
+    return () => {
+      activeAnimation += 1
+      timers.forEach((timer) => window.clearTimeout(timer))
+      clearTextSelection()
+      cursor.remove()
+      document.body.classList.remove('recording-mode')
+    }
+  }, [recordingMode])
+
   const addLane = (event) => {
     event.preventDefault()
     const form = new FormData(event.currentTarget)
@@ -446,7 +591,7 @@ function App() {
             <div className="guided-demo__progress" aria-label={`Demo step ${demoStep} of 5`}>
               {[1, 2, 3, 4, 5].map((step) => <span key={step} className={step <= demoStep ? 'is-complete' : ''}>{step}</span>)}
             </div>
-            <button className={`button ${demoStep === 5 ? 'button--ghost' : 'button--solid'}`} onClick={advanceGuidedDemo}>{demoAction}<Icon name="arrow" size={16} /></button>
+            <button data-record-action="guided-demo" className={`button ${demoStep === 5 ? 'button--ghost' : 'button--solid'}`} onClick={advanceGuidedDemo}>{demoAction}<Icon name="arrow" size={16} /></button>
           </section>
 
           <section className="metric-grid" aria-label="Runway metrics">

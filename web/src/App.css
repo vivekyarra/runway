@@ -13,6 +13,118 @@
   --shadow: 0 18px 50px rgba(0, 0, 0, 0.22);
 }
 
+body.recording-mode {
+  cursor: none;
+  scroll-behavior: smooth;
+}
+
+body.recording-mode button,
+body.recording-mode a {
+  cursor: none;
+}
+
+.recording-cursor {
+  position: fixed;
+  top: -2px;
+  left: -2px;
+  z-index: 1000;
+  width: 28px;
+  height: 32px;
+  pointer-events: none;
+  filter: drop-shadow(0 2px 3px rgba(0, 0, 0, 0.72));
+  will-change: transform;
+}
+
+.recording-cursor svg {
+  display: block;
+  width: 28px;
+  height: 32px;
+  overflow: visible;
+  transform-origin: 4px 4px;
+  transition: transform 120ms ease;
+}
+
+.recording-cursor path {
+  fill: #f7fbfa;
+  stroke: #07100f;
+  stroke-linejoin: round;
+  stroke-width: 1.7px;
+}
+
+.recording-cursor span {
+  position: absolute;
+  top: -5px;
+  left: -5px;
+  width: 20px;
+  height: 20px;
+  border: 2px solid rgba(215, 255, 92, 0.82);
+  border-radius: 50%;
+  opacity: 0;
+  transform: scale(0.35);
+}
+
+.recording-cursor--moving svg {
+  transform: rotate(-2deg);
+}
+
+.recording-cursor--clicking svg {
+  transform: scale(0.86);
+}
+
+.recording-cursor--clicking span {
+  animation: recording-click-ring 360ms ease-out;
+}
+
+.recording-target-hover {
+  outline: 1px solid rgba(215, 255, 92, 0.5);
+  outline-offset: 3px;
+}
+
+.recording-target-active {
+  filter: brightness(1.16);
+}
+
+@keyframes recording-click-ring {
+  0% { opacity: 0.95; transform: scale(0.35); }
+  100% { opacity: 0; transform: scale(1.55); }
+}
+
+body.recording-mode::before {
+  content: 'LIVE PRODUCT CAPTURE';
+  position: fixed;
+  right: 22px;
+  bottom: 18px;
+  z-index: 80;
+  padding: 7px 10px 7px 24px;
+  border: 1px solid rgba(255, 125, 125, 0.34);
+  border-radius: 999px;
+  background: rgba(9, 18, 18, 0.9);
+  color: #d8e7e1;
+  box-shadow: 0 8px 28px rgba(0, 0, 0, 0.32);
+  font: 700 9px/1 ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+  letter-spacing: 0.12em;
+  pointer-events: none;
+}
+
+body.recording-mode::after {
+  content: '';
+  position: fixed;
+  right: 137px;
+  bottom: 25px;
+  z-index: 81;
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: var(--red);
+  box-shadow: 0 0 12px rgba(255, 125, 125, 0.8);
+  animation: recording-pulse 1.4s ease-in-out infinite;
+  pointer-events: none;
+}
+
+@keyframes recording-pulse {
+  50% { opacity: 0.35; transform: scale(0.82); }
+}
+
 .app-shell {
   min-height: 100vh;
   background:
