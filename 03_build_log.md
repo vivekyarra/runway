@@ -80,3 +80,12 @@
 - Added real temporary-Git regression coverage: an undeclared `src/drift.js` change is named and blocks handoff; restoring it makes the audit pass. Added a separate file-boundary guard for symbol-only declarations. The suite now contains 27 tests.
 - Preserved the remaining limitations: participation is cooperative; the audit is file-level rather than symbol-level enforcement; declarations can be overly broad; and no distributed lock, runtime write prevention, compiler-grade analysis, or conflict-free merge guarantee is claimed.
 - Recorded the product mechanism and regression coverage in milestone commit `d188e8c` before the submission-copy and visual update.
+
+## 2026-07-19 - scope-contract release evidence
+
+- Separated the final work into reviewable milestones: `d188e8c` implements actual-Git scope auditing and `69c3811` replaces self-scoring with judge-visible proof, the new hook, the exact video path, and updated submission images.
+- Ran the complete local gate after the product change: 27/27 tests, lint, production build, and checked-in demo packaging passed. The Windows concurrency test was also repeated to expose and fix a real lock-acquisition race before release.
+- Executed the submission video's CLI sequence against a disposable Git repository. The first audit named undeclared `src/quote.js` and rejected handoff; after restoring that file, the audit passed with only `src/tax/adjustments.js` changed and handoff succeeded.
+- Verified pushed commit `69c3811` from a fresh public clone: `npm ci` reported zero vulnerabilities, 27/27 tests passed, lint and build passed, and the no-rebuild static server returned HTTP 200 for both the document and hashed JavaScript asset.
+- GitHub Actions run `29678201878` passed both Linux verification and deployment. The hosted judge path completed reroute -> reserve -> audit -> handoff, distinguished an import-based caution from a declared-overlap hold, displayed the diff-conformance receipt, emitted no browser warnings or errors, and fit a 390x844 mobile viewport without horizontal overflow.
+- Final release evidence remains deliberately bounded: the dashboard audit is a labeled fixture snapshot, while the CLI is the executable proof that reads Git. The remaining account-bound work is video recording/upload, Devpost entry completion, and the required `/feedback` Session ID step.
