@@ -1,0 +1,103 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1600" height="900" viewBox="0 0 1600 900" role="img" aria-labelledby="title desc">
+  <title id="title">Runway pre-edit clearance architecture</title>
+  <desc id="desc">Two Codex agents declare intended files, symbols, and behavioral contracts. Runway grounds them in a repository scan, returns explainable clearance, and records a verified handoff.</desc>
+  <defs>
+    <linearGradient id="background" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#071112"/>
+      <stop offset="1" stop-color="#102524"/>
+    </linearGradient>
+    <linearGradient id="panel" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#142827"/>
+      <stop offset="1" stop-color="#0b1819"/>
+    </linearGradient>
+    <marker id="arrow" markerWidth="10" markerHeight="10" refX="8" refY="5" orient="auto">
+      <path d="M0 0 10 5 0 10Z" fill="#79e6ce"/>
+    </marker>
+    <filter id="glow" x="-50%" y="-50%" width="200%" height="200%">
+      <feGaussianBlur stdDeviation="7" result="blur"/>
+      <feMerge><feMergeNode in="blur"/><feMergeNode in="SourceGraphic"/></feMerge>
+    </filter>
+    <style>
+      .label { fill: #86a09b; font: 700 18px ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; letter-spacing: 3px; }
+      .title { fill: #f1f7f5; font: 800 54px Inter, Arial, sans-serif; letter-spacing: -2px; }
+      .subtitle { fill: #a9bdb9; font: 400 23px Inter, Arial, sans-serif; }
+      .panel-title { fill: #ecf5f2; font: 750 27px Inter, Arial, sans-serif; }
+      .body { fill: #a8bbb7; font: 400 18px Inter, Arial, sans-serif; }
+      .mono { fill: #d5e2df; font: 650 17px ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; }
+      .small { fill: #809792; font: 500 15px Inter, Arial, sans-serif; }
+    </style>
+  </defs>
+
+  <rect width="1600" height="900" fill="url(#background)"/>
+  <circle cx="1450" cy="70" r="260" fill="#d7ff5c" opacity="0.025"/>
+  <circle cx="120" cy="780" r="310" fill="#53e6c7" opacity="0.025"/>
+
+  <text x="90" y="78" class="label" fill="#d7ff5c">RUNWAY / PRE-EDIT INTERCEPTION</text>
+  <text x="90" y="145" class="title">Stop the collision before the first edit.</text>
+  <text x="90" y="187" class="subtitle">A transparent control layer between parallel Codex intent and repository change.</text>
+
+  <rect x="90" y="250" width="355" height="205" rx="20" fill="url(#panel)" stroke="#38504d"/>
+  <circle cx="125" cy="290" r="7" fill="#53e6c7" filter="url(#glow)"/>
+  <text x="148" y="299" class="panel-title">Agent A / Pricing</text>
+  <text x="122" y="337" class="small">DECLARES BEFORE EDITING</text>
+  <rect x="122" y="360" width="128" height="38" rx="9" fill="#1a3431"/><text x="137" y="385" class="mono">quote.js</text>
+  <rect x="261" y="360" width="151" height="38" rx="9" fill="#1a3431"/><text x="276" y="385" class="mono">quoteTotal</text>
+  <rect x="122" y="407" width="120" height="32" rx="8" fill="#24331c"/><text x="137" y="429" class="mono" fill="#d7ff5c">pricing</text>
+
+  <rect x="90" y="485" width="355" height="205" rx="20" fill="url(#panel)" stroke="#5d4940"/>
+  <circle cx="125" cy="525" r="7" fill="#ff8d82" filter="url(#glow)"/>
+  <text x="148" y="534" class="panel-title">Agent B / Tax</text>
+  <text x="122" y="572" class="small">DECLARES BEFORE EDITING</text>
+  <rect x="122" y="595" width="128" height="38" rx="9" fill="#332723"/><text x="137" y="620" class="mono">quote.js</text>
+  <rect x="261" y="595" width="151" height="38" rx="9" fill="#332723"/><text x="276" y="620" class="mono">quoteTotal</text>
+  <rect x="122" y="642" width="120" height="32" rx="8" fill="#382b1e"/><text x="137" y="664" class="mono" fill="#ffc769">pricing</text>
+
+  <path d="M445 352 H555" stroke="#79e6ce" stroke-width="3" marker-end="url(#arrow)"/>
+  <path d="M445 587 H555" stroke="#79e6ce" stroke-width="3" marker-end="url(#arrow)"/>
+
+  <rect x="575" y="290" width="430" height="360" rx="28" fill="#122725" stroke="#6d8c85" stroke-width="2"/>
+  <rect x="602" y="317" width="376" height="70" rx="15" fill="#d7ff5c" opacity="0.08" stroke="#d7ff5c" stroke-opacity="0.35"/>
+  <text x="628" y="346" class="label" fill="#d7ff5c">DETERMINISTIC CORE</text>
+  <text x="628" y="375" class="panel-title">Runway clearance engine</text>
+
+  <text x="624" y="430" class="body">1. Normalize declared paths and symbols</text>
+  <text x="624" y="472" class="body">2. Ground scope in the persisted JS/TS scan</text>
+  <text x="624" y="514" class="body">3. Compare files, symbols, contracts, imports</text>
+  <text x="624" y="556" class="body">4. Protect the established airborne owner</text>
+
+  <rect x="624" y="585" width="330" height="42" rx="10" fill="#091616" stroke="#36514c"/>
+  <text x="644" y="612" class="mono">evidence, never opaque confidence</text>
+
+  <rect x="575" y="700" width="430" height="112" rx="20" fill="url(#panel)" stroke="#36514c"/>
+  <text x="604" y="739" class="label" fill="#82d6ff">REPOSITORY SCAN</text>
+  <text x="604" y="777" class="body">Files + exports + one-hop relative imports</text>
+  <text x="604" y="801" class="small">Grounding informs review; it never pretends to infer intent.</text>
+  <path d="M790 700 V656" stroke="#79e6ce" stroke-width="3" marker-end="url(#arrow)"/>
+
+  <path d="M1005 470 H1105" stroke="#79e6ce" stroke-width="3" marker-end="url(#arrow)"/>
+
+  <rect x="1125" y="250" width="385" height="440" rx="28" fill="url(#panel)" stroke="#38504d"/>
+  <text x="1160" y="296" class="label" fill="#d7ff5c">EXPLAINABLE DECISION</text>
+
+  <rect x="1160" y="328" width="315" height="84" rx="14" fill="#35231f" stroke="#ff8d82" stroke-opacity="0.45"/>
+  <circle cx="1190" cy="370" r="8" fill="#ff8d82" filter="url(#glow)"/>
+  <text x="1214" y="362" class="panel-title">HOLD</text>
+  <text x="1214" y="389" class="small">Direct scope collision. Reroute first.</text>
+
+  <rect x="1160" y="430" width="315" height="84" rx="14" fill="#302d1d" stroke="#e8d66a" stroke-opacity="0.42"/>
+  <circle cx="1190" cy="472" r="8" fill="#e8d66a"/>
+  <text x="1214" y="464" class="panel-title">CAUTION</text>
+  <text x="1214" y="491" class="small">Dependency proximity. Review the edge.</text>
+
+  <rect x="1160" y="532" width="315" height="84" rx="14" fill="#173229" stroke="#53e6c7" stroke-opacity="0.42"/>
+  <circle cx="1190" cy="574" r="8" fill="#53e6c7" filter="url(#glow)"/>
+  <text x="1214" y="566" class="panel-title">CLEAR</text>
+  <text x="1214" y="593" class="small">Reserve the bounded lane and work.</text>
+
+  <rect x="1125" y="720" width="385" height="92" rx="20" fill="#d7ff5c" opacity="0.09" stroke="#d7ff5c" stroke-opacity="0.35"/>
+  <text x="1160" y="756" class="label" fill="#d7ff5c">VERIFIED HANDOFF</text>
+  <text x="1160" y="788" class="body">scope + command + result + remaining risk</text>
+  <path d="M1317 690 V714" stroke="#79e6ce" stroke-width="3" marker-end="url(#arrow)"/>
+
+  <text x="90" y="853" class="small">Local-first · dependency-free CLI · reusable Codex skill · browser judge path · no runtime model call required</text>
+</svg>

@@ -1,152 +1,182 @@
 # Runway
 
-> Pre-edit scope clearance for parallel Codex agents.
+> Stop two coding agents from changing the same behavior before either one edits.
 
-Before agents edit, Runway asks them to declare the files, exported symbols, and behavioral contracts they expect to touch. It compares those declarations, names the matching scope behind a hold, and records operator-supplied verification evidence at handoff.
+Runway is pre-edit declared-scope clearance for parallel Codex agents. Each agent declares the files, exported symbols, and behavioral contracts it expects to change. Runway grounds that declaration in a repository scan, explains collisions with exact evidence, and either clears, cautions, or holds the work lane. A verified handoff preserves what changed, what command was run, and what risk remains.
 
-## What Runway is - and is not
+Runway is entered in the **Developer Tools** track of OpenAI Build Week.
 
-Runway is a local planning gate for cooperative coding agents. It is not an agent orchestrator, file-locking runtime, merge-conflict solver, or proof that a change is safe.
+[**Open the live judge demo**](https://vivekyarra.github.io/runway/) · [View the verified deployment](https://github.com/vivekyarra/runway/actions/workflows/pages.yml)
 
-Agents voluntarily declare bounded scope before editing. Runway scores declared file, symbol, contract, and module-area overlap, explains a hold with named evidence, and keeps a compact handoff receipt. Its CLI separately inventories common named JavaScript/TypeScript exports, imports, and routes; that scan does not infer intent or automatically change clearance.
+![Runway catches a three-signal agent collision before editing](docs/runway-judge-demo.png)
 
-This is deliberately a transparent local heuristic. It does not enforce writes, read private prompts, predict every dependency conflict, or guarantee a conflict-free merge.
+## Judge this build in 90 seconds
 
-## Why it exists
+The fastest path is the [public hosted demo](https://vivekyarra.github.io/runway/). No account, API key, install, or rebuild is required.
 
-Worktrees isolate where agents edit, and file-claim tools can react when editing begins. The missing pre-edit question is: given the code surface each agent says it intends to change, should either agent hold, reroute, or proceed - and what evidence supports that decision?
+For the local fallback, only Node.js 20.19+ is required:
 
-Runway makes that decision reviewable while a change is still cheap to redirect.
+~~~powershell
+git clone https://github.com/vivekyarra/runway.git
+cd runway\web
+node bin\demo-server.mjs
+~~~
+
+Open [http://127.0.0.1:4174](http://127.0.0.1:4174), then follow the **45-second judge demo**:
+
+1. See Tax held before editing because it duplicates Pricing at `src/quote.js`, `quoteTotal`, and the `pricing` contract.
+2. Choose **Reroute held lane**. Runway removes the owned overlap and rechecks the declaration.
+3. Choose **Reserve clear lane**. The isolated tax-adjustment lane becomes airborne.
+4. Choose **Create verified handoff**. The receipt preserves declared scope and observed test evidence.
+
+The dashboard also shows a non-blocking repository dependency warning: Checkout imports Pricing's file even though their declarations do not directly overlap. That is the difference between a transparent review signal and a hard hold.
+
+## The problem
+
+Git worktrees isolate *where* agents edit. Merge tools react *after* code diverges. File claims help once a path is touched. None answers the earlier and cheaper question:
+
+> Before two agents start, do they intend to change the same behavior?
+
+Files alone are not enough. Two agents can touch different paths while changing the same contract; two declarations can also be file-disjoint but connected by a real import. Runway makes that risk visible while rerouting is still cheap.
 
 ## What works today
 
-- A browser dashboard with a deterministic multi-agent Parcel Ops scenario.
-- A dependency-free Node CLI that initializes local control state, scans JS/TS surface metadata, creates and transitions declared lanes, and writes handoff receipts.
-- Bounded local concurrency protection for CLI writes: exclusive state lock, reload-under-lock, and same-directory atomic state replacement.
-- A reusable Codex skill for declaring scope, honoring holds, and attaching actual verification evidence.
-- A bundled fixture, tests, and a checked-in static demo that need no keys, account, or hosted service.
+- **Pre-edit clearance:** deterministic scoring over exact files, case-sensitive exported symbols, behavioral contracts, module proximity, and scanned one-hop relative imports.
+- **Repository grounding:** a persisted JS/TS scan reports which declared files and symbols exist and names anything unknown.
+- **Explainable decisions:** every hold or caution carries the file, symbol, contract, or dependency edge that caused it.
+- **Safe lane lifecycle:** declare, inspect, reserve, reroute, and create an evidence-backed handoff; invalid transitions are rejected.
+- **Concurrent local state:** CLI writers use an exclusive local lock, reload under lock, then atomically replace `.runway/state.json`.
+- **Codex-native workflow:** the bundled skill instructs an agent to declare before editing, honor holds, verify real work, and hand off.
+- **Portable product demo:** checked-in static assets, fixture source, and tests run without credentials or a network service.
+- **State bridge:** export the dashboard scenario or import a real `.runway/state.json` into the browser for inspection.
 
-## Requirements and supported path
+## How clearance works
 
-The verified path is Windows PowerShell with Node.js 20.19 or newer. Node 24 was used for this build and test pass. The checked-in static demo requires only Node; source development also requires npm.
+| Signal | Example | Decision weight |
+|---|---|---|
+| Exact declared file | both lanes name `src/quote.js` | blocking evidence |
+| Exact exported symbol | both lanes name `quoteTotal` | blocking evidence |
+| Behavioral contract | both lanes name `pricing` | blocking evidence |
+| Same module area | two files under `src/billing/` | non-blocking caution |
+| Scanned relative import | `CheckoutForm.jsx -> quote.js` | non-blocking repository caution |
 
-No API key, account, model call, CDN, or network service is required to run the product.
+An established airborne owner is protected. A later lane with critical or high direct overlap is held. Low-proximity and dependency signals ask for review without pretending that an import proves incompatible intent.
 
-## Dashboard quick start
-
-From the repository's web folder:
+## Dashboard development path
 
 ~~~powershell
+cd web
 npm ci
 npm run dev
 ~~~
 
-Open the Vite URL. The Tax lane begins on hold because its declared scope overlaps Pricing at src/quote.js, quoteTotal, and the pricing contract. Select Tax, choose **Remove overlap & recheck**, reserve the now-clear lane, then hand it off.
+The dashboard is browser-local and never runs shell commands. The bundled scenario includes test evidence recorded from the fixture; use the CLI to create evidence from commands you run yourself. To inspect a CLI-created state, choose **Import state** and select the target repository's `.runway/state.json`.
 
-The dashboard is a browser-local demonstration. It does not run shell commands in the browser. Its displayed passing evidence is pre-recorded from the fixture tests and is copied into the receipt; use the CLI workflow below to record evidence from a command you actually ran.
-
-For a source build:
-
-~~~powershell
-npm run lint
-npm test
-npm run build
-~~~
-
-## No-rebuild judge path
-
-The checked-in web/demo folder is a portable static build. From the web folder:
-
-~~~powershell
-node bin/demo-server.mjs
-~~~
-
-Open http://127.0.0.1:4174. No package installation or rebuild is needed. After changing source, regenerate the checked-in demo with:
+After changing dashboard source, rebuild the checked-in judge demo with:
 
 ~~~powershell
 npm run package:demo
 ~~~
 
-## CLI demo
+## Real CLI workflow
 
-All control state is local to the target repository in .runway/state.json. Scan output is informational; clearance still compares the declared lane scope.
+All product state stays under the target repository's `.runway` folder.
 
 ~~~powershell
-# From this repository's web folder:
-node bin/runway.mjs scan --root fixtures\parcel-ops
+# From this repository's web folder, initialize the bundled scenario.
+node bin\runway.mjs init --root fixtures\parcel-ops --demo
 
-# This creates ignored demo state only under fixtures\parcel-ops\.runway.
-node bin/runway.mjs init --root fixtures\parcel-ops --demo
-node bin/runway.mjs status --root fixtures\parcel-ops
+# Persist the real JS/TS inventory. The JSON response says persisted: true.
+node bin\runway.mjs scan --root fixtures\parcel-ops --write
+node bin\runway.mjs status --root fixtures\parcel-ops
 
-# Tax is held until its declared scope is narrowed, then rechecked.
-node bin/runway.mjs lane reroute --root fixtures\parcel-ops --id tax-adjustment --files "src/tax/adjustments.js" --symbols "calculateTaxAdjustment" --contracts "tax-adjustment"
-node bin/runway.mjs lane reserve --root fixtures\parcel-ops --id tax-adjustment
+# Tax begins held. Narrow it away from Pricing and request clearance again.
+node bin\runway.mjs lane reroute --root fixtures\parcel-ops --id tax-adjustment --files "src/tax/adjustments.js" --symbols "calculateTaxAdjustment" --contracts "tax-adjustment"
+node bin\runway.mjs lane reserve --root fixtures\parcel-ops --id tax-adjustment
 
-# Run this command yourself before recording it as evidence.
-node --test fixtures/parcel-ops/tests/tax.test.mjs
-node bin/runway.mjs lane handoff --root fixtures\parcel-ops --id tax-adjustment --evidence "node --test fixtures/parcel-ops/tests/tax.test.mjs" --result "passing" --note "Tax adjustment path verified after reroute."
+# Run the evidence command yourself before recording its result.
+node --test fixtures\parcel-ops\tests\tax.test.mjs
+node bin\runway.mjs lane handoff --root fixtures\parcel-ops --id tax-adjustment --evidence "node --test fixtures/parcel-ops/tests/tax.test.mjs" --result "passing" --note "Tax adjustment path verified after reroute."
 ~~~
 
-A lane must declare at least one file, symbol, or contract. Runway permits a handoff only when the lane is airborne and the operator supplies recorded evidence; the operator must only record evidence from a command actually run. Init intentionally replaces control state, so use it only for a new Runway state.
+A lane must declare at least one file, symbol, or contract. Runway only creates a handoff for an airborne lane and records the evidence supplied by the operator; it does not falsely claim to have run that command.
 
 ### Local write protocol
 
-Mutating CLI commands cooperate through .runway/state.lock. A writer obtains an exclusive local lock, reloads state while holding it, writes a temporary file in the same directory, and atomically replaces state.json. This prevents ordinary concurrent local CLI writers from losing each other's updates.
+Mutating commands cooperate through `.runway/state.lock`. A writer obtains an exclusive local lock, reloads state while holding it, writes a temporary file in the same directory, and atomically replaces `state.json`. Tests cover concurrent lane creation, duplicate IDs, and dead stale-lock recovery.
 
-The lock is a cooperative local-filesystem protocol, not a security boundary or distributed lock. It is tested for normal local Windows-style repository use; do not treat it as a guarantee on SMB, NFS, or against a process that ignores the protocol.
+This is a local-filesystem coordination protocol, not a security boundary or distributed lock. Do not treat it as an SMB/NFS guarantee or protection from a process that ignores the protocol.
 
-## Use with Codex
-
-Install the included skill from the web folder, then use the absolute CLI path when working in a target repository:
+## Install the Codex skill
 
 ~~~powershell
+cd web
 $runwayCheckout = (Resolve-Path .).Path
 $skillsRoot = Join-Path ([Environment]::GetFolderPath('UserProfile')) '.codex\skills'
 New-Item -ItemType Directory -Force -Path $skillsRoot | Out-Null
 Copy-Item -Recurse -Force (Join-Path $runwayCheckout 'skills\runway') (Join-Path $skillsRoot 'runway')
 
-# In the Codex session that will coordinate a target repository:
+# Set this in each coordinating Codex session.
 $env:RUNWAY_CLI = Join-Path $runwayCheckout 'bin\runway.mjs'
 ~~~
 
-If Codex was already open, start a new session so it discovers the installed skill. The skill calls the local CLI; it never needs an API key.
+Start a new Codex session after installation so the skill is discovered. The skill calls the local CLI and needs no runtime API key.
 
-## Verification
-
-From web:
+## Verify the product
 
 ~~~powershell
+cd web
+npm ci
 npm test
 npm run lint
 npm run build
 npm run package:demo
 ~~~
 
+The current suite has 23 tests covering the fixture, collision model, repository grounding, dependency evidence, lane guards, concurrent writers, and stale-lock recovery.
+
 ## Architecture
 
-~~~text
-Codex skill --> Runway CLI --> .runway/state.json
-                      |
-                      +--> scans JS/TS exports, imports, and routes
-                      +--> compares declared file, symbol, contract, and module-area scope
-                      +--> emits an evidence-backed handoff receipt
+![Runway pre-edit clearance architecture](docs/runway-architecture.svg)
 
-React dashboard --> same deterministic lane/collision model --> portable JSON export
+~~~text
+Codex agent -> runway skill -> dependency-free Node CLI -> .runway/state.json
+                                  |                         |
+                                  |                         +-> atomic local state + receipts
+                                  +-> JS/TS scan ---------->+-> grounding + import edges
+                                  +-> declared scope ------>+-> clear / caution / hold
+
+React dashboard -> same collision core -> guided demo + JSON import/export
+Bundled fixture  -> real source/tests  -> reproducible evidence
 ~~~
 
-## Codex collaboration record
+The collision core is shared by the CLI and React dashboard. The static demo is generated from the same source, so the presentation is not a disconnected mockup.
 
-Codex accelerated the build from idea selection through adversarial verification. Its key decisions and contributions were:
+## Why Runway is different
 
-- **Product:** compare alternatives and position Runway as pre-edit declared-scope clearance rather than generic agent orchestration.
-- **Engineering:** build the shared collision model, state-transition guards, Windows path and symbol-case fixes, and the bounded local atomic-write protocol.
-- **Design:** make the hold -> reroute -> reserve -> evidence-backed handoff decision readable in one static, no-account demo.
-- **QA:** generate edge-case tests for collision ordering, scope validation, concurrent writers, stale locks, and the actual fixture evidence commands.
+Runway is not another general agent orchestrator or post-hoc trace viewer. Its narrow unit is a **pre-edit semantic work lane**:
 
-The core-build session of record is 019f6e9b-8401-78c0-a71b-56273ec52b3f, authenticated as gpt-5.6-terra and recorded in 03_build_log.md. That log records the decisions, test evidence, and remaining bounded risks.
+- earlier than merge conflict resolution;
+- richer than a file lock because it names symbols and behavioral contracts;
+- more honest than opaque “AI confidence” because the evidence and scoring are inspectable;
+- complementary to Git, worktrees, tests, and review rather than a replacement for them.
 
-For Devpost copy, the video flow, and the remaining account-bound submission checklist, see [SUBMISSION.md](SUBMISSION.md).
+## Honest boundaries
+
+Runway is a cooperative local heuristic. Declarations can be incomplete or stale. The scanner recognizes common JS/TS exports, imports, and routes; it is not a compiler or whole-program analyzer. A caution does not prove a collision, and clearance does not guarantee a conflict-free merge. The dashboard does not monitor agents or execute commands.
+
+These boundaries are deliberate: a judge can reproduce every product decision without trusting a hidden model call.
+
+## Codex and GPT-5.6 collaboration
+
+Codex with GPT-5.6-terra accelerated the project from product selection through adversarial verification:
+
+- **Product:** compared 20 candidate ideas against the four judging criteria and narrowed the position to pre-edit declared-scope clearance.
+- **Engineering:** implemented the shared collision core, CLI, repository scan, atomic local write protocol, transition guards, and JSON state bridge.
+- **Design:** shaped the collision -> reroute -> reserve -> verified-handoff story into a guided judge flow.
+- **QA:** found and fixed Windows path normalization, symbol-case, ownership-order, unscoped-lane, concurrent-write, stale-lock, and claim-accuracy defects; added regression tests.
+
+The core-build session of record is `019f6e9b-8401-78c0-a71b-56273ec52b3f`, authenticated as `gpt-5.6-terra`. [03_build_log.md](03_build_log.md) records decisions, validation evidence, and remaining risks. [SUBMISSION.md](SUBMISSION.md) contains final Devpost copy, the exact video script, and the account-bound checklist.
 
 ## License
 

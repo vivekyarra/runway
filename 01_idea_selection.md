@@ -33,7 +33,7 @@ Scoring: T=technical implementation, D=design, I=potential impact, Q=idea qualit
 
 - **Technical implementation:** Codex is the active operator, not a chat wrapper: it reserves a lane, reads a collision report, works in a scoped branch/worktree, validates, and closes with an auditable handoff. The core delivers real JS/TS symbol/import analysis and deterministic collision reasoning.
 - **Design:** a visual mission-control surface makes parallel-agent coordination legible in seconds; every warning names the exact overlapping file, symbol, or contract.
-- **Potential impact:** as teams use multiple coding agents, file-level Git conflicts arrive too late. Runway catches the more expensive conflictâ€”two agents independently changing the same behaviorâ€”before code diverges.
+- **Potential impact:** as teams use multiple coding agents, file-level Git conflicts arrive too late. Runway catches the more expensive conflict—two agents independently changing the same behavior—before code diverges.
 - **Quality of idea:** verification and agent-memory tools already exist; the differentiated unit here is a **pre-edit semantic work lane** with safe routing, not another post-hoc dashboard.
 - **Feasibility:** the first release is deliberately bounded to local JavaScript/TypeScript repositories, a bundled demo repo, and explicit heuristic confidence. It never claims universal static analysis or formal correctness.
 

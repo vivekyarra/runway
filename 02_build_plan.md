@@ -32,3 +32,9 @@ Deadline anchor: the Jul 21, 2026, 5:00 PM PT submission deadline in `00_facts.m
 ## 2026-07-17 - implementation clarification (append-only)
 
 The original architecture line saying the collision engine scores import relationships was broader than the implemented clearance behavior. The current shared collision engine compares declared files, exported symbols, behavioral contracts, and module-area proximity. The CLI scan separately inventories common named JS/TS exports, imports, and routes; scan results do not automatically change clearance. This keeps the implemented heuristic transparent and preserves the guardrail against overclaiming static analysis.
+
+## 2026-07-19 - repository-grounded clearance addendum (supersedes the clarification above)
+
+The persisted scan now grounds declared files and symbols and contributes resolved one-hop relative-import edges as low, non-blocking review evidence. Exact declared file, symbol, and contract overlap remains the only basis for a hard hold. This preserves the transparent heuristic boundary while making scan output operational rather than decorative.
+
+The judge path now has three layers: a public GitHub Pages demo, a checked-in static build served with Node, and the full CLI/skill workflow against the real fixture. A GitHub Actions gate runs clean install, 23 tests, lint, and production build before deploying the checked-in static demo.

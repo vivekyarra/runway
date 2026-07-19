@@ -1,6 +1,6 @@
 # OpenAI Build Week - verified facts
 
-Verified 2026-07-17 against the live [Devpost overview](https://openai.devpost.com/) and [Official Rules](https://openai.devpost.com/rules). The Official Rules prevail if pages disagree.
+Verified 2026-07-17 and rechecked 2026-07-19 against the live [Devpost overview](https://openai.devpost.com/) and [Official Rules](https://openai.devpost.com/rules). The Official Rules prevail if pages disagree.
 
 ## Dates
 
@@ -24,7 +24,21 @@ The project must be built with **Codex and GPT-5.6**, fit one track, install/run
 - README with setup/sample-data/run instructions and an explicit Codex collaboration record: acceleration, key product/engineering/design decisions, and GPT-5.6/Codex contribution.
 - `/feedback` Codex Session ID for the project thread where most core functionality was built.
 - A free working test path (site, demo, or test build; credentials if private) available through judging. Developer tools/plugins also need installation instructions, supported platforms, and a test path without rebuilding.
+- Judges are not required to run the project and may score only the description, images, and video. The visible submission must therefore carry the core proof without depending on repository exploration.
+- The working test path must remain free and unrestricted through the judging period.
 - English materials (or English translations); original work/IP-compliant. Each project may win one prize.
+
+## Judges
+
+The live overview names this panel:
+
+- Thibault Sottiaux — Head of Product & Platform
+- Kath Korevec — Member of Product Staff
+- Tara Seshan — Member of Product Staff
+- Leah Belsky — VP of Education
+- Peter Steinberger — Member of Technical Staff, Clawfather
+
+Public background is a secondary signal only; the published criteria remain authoritative. The 2026-07-19 fit review in `03_build_log.md` labels profile-based conclusions as inferences rather than private knowledge.
 
 ## Judging
 

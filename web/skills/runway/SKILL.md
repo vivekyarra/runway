@@ -23,15 +23,15 @@ Use node $env:RUNWAY_CLI for every command below. It only writes the target repo
    node $env:RUNWAY_CLI init --root .
    ~~~
 
-2. Optionally inventory the local JavaScript/TypeScript surface.
+2. Inventory and persist the local JavaScript/TypeScript surface before declaring work.
 
    ~~~powershell
    node $env:RUNWAY_CLI scan --root . --write
    ~~~
 
-   Scan reports common named exports, imports, and routes separately. It helps you make an honest declaration but does not automatically feed the collision score.
+   The persisted scan reports common named exports, imports, and routes. It grounds declared files and symbols and contributes one-hop relative-import evidence as a non-blocking review signal. It does not infer intent or turn dependency proximity into a hard hold.
 
-3. Declare only the files, exported symbols, and behavioral contracts you actually expect to touch. At least one category is required. Read the JSON result from lane create; it contains clearance.state and exact declared collision evidence.
+3. Declare only the files, exported symbols, and behavioral contracts you actually expect to touch. At least one category is required. Read the JSON result from lane create; it contains `clearance`, `grounding`, and the exact collision evidence. Resolve unknown declared files or symbols before treating the declaration as repository-grounded.
 
    ~~~powershell
    node $env:RUNWAY_CLI lane create --root . --id <lane> --agent "Codex / <role>" --task "<outcome>" --files "src/a.ts" --symbols "exportedSymbol" --contracts "api-contract"
@@ -53,6 +53,7 @@ Use node $env:RUNWAY_CLI for every command below. It only writes the target repo
   ~~~
 
 - Treat caution as a review signal, not permission to broaden work without another declaration.
+- A dependency-edge caution means the declared files are connected by the persisted scan. Inspect the edge; it is evidence for review, not proof of incompatible intent.
 - Do not describe a guessed file, a command you did not run, or a test result you did not observe as evidence.
 - Keep edits within the reserved scope. If the scope expands, reroute and inspect clearance before making the expanded change.
 - Runway is heuristic coordination support. It cannot guarantee a conflict-free merge.
