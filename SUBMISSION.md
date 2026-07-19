@@ -18,7 +18,7 @@ This file is the final copy-and-record handoff for OpenAI Build Week. Track: **D
 
 **Supported platform:** The hosted browser demo works on modern desktop browsers. The verified CLI path is Windows PowerShell with Node.js 20.19+; the included static server is platform-neutral wherever Node can run.
 
-**Short description:** Runway gives parallel Codex agents a code-scope contract: declare expected files, symbols, and behavior before coding; then check the actual Git changed-file set before handoff. Exact overlap can hold unsafe work, and undeclared changed files block the receipt.
+**Short description:** Parallel coding agents can duplicate the same behavior and drift beyond assigned scope before Git review catches it. Runway adds a code-scope contract: declare expected files, symbols, and behavior before coding, then prove the actual Git changed-file set stayed inside that lane before handoff.
 
 ## Full project description
 
@@ -28,7 +28,7 @@ Parallel coding agents make teams faster, but Git usually reveals coordination f
 
 ### What it does
 
-Runway adds a two-sided code-scope contract. Before implementation, each Codex agent declares a bounded work lane using expected files, exported symbols, and behavioral contracts. A deterministic engine compares active lanes and returns one of four inspectable states: clear, caution, protected owner, or hold.
+Runway adds a two-sided code-scope contract. Before implementation, each coding agent declares a bounded work lane using expected files, exported symbols, and behavioral contracts. A deterministic engine compares active lanes and returns one of four inspectable states: clear, caution, protected owner, or hold.
 
 A persisted repository scan grounds declared files and symbols and contributes non-blocking one-hop relative-import warnings. Direct file, symbol, or contract overlap can stop a later lane. Every decision names its evidence. After implementation, `lane audit` reads staged, unstaged, and untracked Git paths and compares them with the declared files. A missing, failed, or stale audit blocks handoff. A successful receipt contains the declared scope, changed-file conformance, the actual command recorded by the operator, its observed result, and remaining risk.
 

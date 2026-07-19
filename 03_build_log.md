@@ -89,3 +89,8 @@
 - Verified pushed commit `69c3811` from a fresh public clone: `npm ci` reported zero vulnerabilities, 27/27 tests passed, lint and build passed, and the no-rebuild static server returned HTTP 200 for both the document and hashed JavaScript asset.
 - GitHub Actions run `29678201878` passed both Linux verification and deployment. The hosted judge path completed reroute -> reserve -> audit -> handoff, distinguished an import-based caution from a declared-overlap hold, displayed the diff-conformance receipt, emitted no browser warnings or errors, and fit a 390x844 mobile viewport without horizontal overflow.
 - Final release evidence remains deliberately bounded: the dashboard audit is a labeled fixture snapshot, while the CLI is the executable proof that reads Git. The remaining account-bound work is video recording/upload, Devpost entry completion, and the required `/feedback` Session ID step.
+
+## 2026-07-19 - problem-first and reproducibility gate
+
+- Audited the literal first paragraphs after a final external review. The README and Devpost short description now open with the real coordination failure before introducing the solution; Codex and GPT-5.6 remain documented later as the build method rather than presented as the reason for the product.
+- Made the bundled sample path explicit near the no-rebuild instructions: `web/fixtures/parcel-ops` contains the inspectable source, focused tests, and Pricing/Tax/Checkout scenario used by the dashboard and CLI, with no key, hosted dependency, or separate data download.

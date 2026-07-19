@@ -1,6 +1,6 @@
 {
   "name": "runway-codex-control-tower",
-  "description": "A code-scope contract for parallel Codex agents: declare before code, prove the Git diff after.",
+  "description": "Catch duplicated agent work before code diverges, then verify the actual Git diff before handoff.",
   "private": true,
   "version": "1.1.0",
   "engines": {

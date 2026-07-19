@@ -2,7 +2,7 @@
 
 > Declare before code. Prove the diff after.
 
-Runway gives parallel Codex agents a code-scope contract. Each agent declares the files, exported symbols, and behavioral contracts it expects to change. Runway grounds that declaration in a repository scan, explains collisions with exact evidence, and either clears, cautions, or holds the work lane. Before handoff, the CLI compares the actual Git changed-file set with the declaration and blocks scope drift.
+Parallel coding agents can independently implement the same behavior—even in different files—so Git may not expose the coordination failure until code has already diverged. Runway controls that failure boundary with a code-scope contract: each agent declares the files, exported symbols, and behavioral contracts it expects to change, then the CLI compares the actual Git changed-file set with that declaration before handoff.
 
 Runway is entered in the **Developer Tools** track of OpenAI Build Week.
 
@@ -23,6 +23,8 @@ node bin\demo-server.mjs
 ~~~
 
 Open [http://127.0.0.1:4174](http://127.0.0.1:4174), then follow the **45-second judge demo**:
+
+The repository includes the complete sample project at `web/fixtures/parcel-ops`: inspectable JS/JSX source, focused tests, and the concrete Pricing/Tax/Checkout scenario used by both the dashboard and CLI examples. It needs no API key, external service, or separate sample-data download.
 
 1. See Tax held before editing because it duplicates Pricing at `src/quote.js`, `quoteTotal`, and the `pricing` contract.
 2. Choose **Reroute held lane**. Runway removes the owned overlap and rechecks the declaration.
