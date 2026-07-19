@@ -6,6 +6,26 @@ export const createDemoState = () => ({
     language: 'JavaScript / TypeScript',
     lastScan: 'fixture snapshot',
   },
+  scan: {
+    scannedAt: '2026-07-19T06:10:00.000Z',
+    files: [
+      { file: 'src/api/quote.js', symbols: ['createQuoteResponse'], imports: ['../quote.js'], routes: [] },
+      { file: 'src/checkout/CheckoutForm.jsx', symbols: ['CheckoutForm'], imports: ['../quote.js', './submitOrder.js'], routes: [] },
+      { file: 'src/checkout/submitOrder.js', symbols: ['submitOrder'], imports: [], routes: [] },
+      { file: 'src/quote.js', symbols: ['quoteTotal', 'quoteSummary'], imports: [], routes: [] },
+      { file: 'src/receipts/DeliveryNote.jsx', symbols: ['DeliveryNote'], imports: [], routes: [] },
+      { file: 'src/tax/adjustments.js', symbols: ['calculateTaxAdjustment'], imports: [], routes: [] },
+    ],
+    exports: [
+      { symbol: 'createQuoteResponse', file: 'src/api/quote.js' },
+      { symbol: 'CheckoutForm', file: 'src/checkout/CheckoutForm.jsx' },
+      { symbol: 'submitOrder', file: 'src/checkout/submitOrder.js' },
+      { symbol: 'quoteTotal', file: 'src/quote.js' },
+      { symbol: 'quoteSummary', file: 'src/quote.js' },
+      { symbol: 'DeliveryNote', file: 'src/receipts/DeliveryNote.jsx' },
+      { symbol: 'calculateTaxAdjustment', file: 'src/tax/adjustments.js' },
+    ],
+  },
   lanes: [
     {
       id: 'ui-checkout',

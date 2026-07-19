@@ -3,6 +3,7 @@ import test from 'node:test'
 import { fileURLToPath } from 'node:url'
 import {
   assertHandoffAllowed,
+  buildDependencyEdges,
   buildHandoff,
   createLane,
   deriveConflicts,
@@ -12,6 +13,7 @@ import {
   reserveLaneState,
   rerouteScope,
   runwayMetrics,
+  scopeGrounding,
 } from '../src/core/runway.js'
 import { scanWorkspace } from '../bin/runway.mjs'
 
@@ -96,6 +98,57 @@ test('surfaces same-module proximity as a low, non-blocking review signal', () =
   assert.equal(laneClearance(first, conflicts).state, 'caution')
 })
 
+test('uses a persisted repository scan to surface one-hop dependency review signals', () => {
+  const scan = {
+    files: [
+      { file: 'src/checkout/CheckoutForm.jsx', imports: ['../quote.js'] },
+      { file: 'src/quote.js', imports: [] },
+    ],
+    exports: [
+      { symbol: 'CheckoutForm', file: 'src/checkout/CheckoutForm.jsx' },
+      { symbol: 'quoteTotal', file: 'src/quote.js' },
+    ],
+  }
+  const checkout = createLane({
+    id: 'checkout', agent: 'Mira', task: 'Protect submit flow', status: 'queued',
+    files: ['src/checkout/CheckoutForm.jsx'], symbols: ['CheckoutForm'], contracts: ['submit-order'],
+  })
+  const pricing = createLane({
+    id: 'pricing', agent: 'Theo', task: 'Change quote total', status: 'airborne',
+    files: ['src/quote.js'], symbols: ['quoteTotal'], contracts: ['pricing'],
+  })
+
+  assert.deepEqual(buildDependencyEdges(scan), [
+    { from: 'src/checkout/CheckoutForm.jsx', to: 'src/quote.js' },
+  ])
+  const conflicts = deriveConflicts([checkout, pricing], scan)
+  assert.equal(conflicts.length, 1)
+  assert.equal(conflicts[0].severity, 'low')
+  assert.deepEqual(conflicts[0].evidence, [{
+    kind: 'dependency edge',
+    values: ['src/checkout/CheckoutForm.jsx -> src/quote.js'],
+    weight: 'repository',
+  }])
+  assert.equal(laneClearance(checkout, conflicts).state, 'caution')
+})
+
+test('reports how much declared scope is grounded in the repository scan', () => {
+  const lane = createLane({
+    id: 'mixed', agent: 'Ada', task: 'Ground scope',
+    files: ['src/quote.js', 'src/missing.js'],
+    symbols: ['quoteTotal', 'missingExport'],
+  })
+  const grounding = scopeGrounding(lane, {
+    files: [{ file: 'src/quote.js', imports: [] }],
+    exports: [{ symbol: 'quoteTotal', file: 'src/quote.js' }],
+  })
+
+  assert.equal(grounding.available, true)
+  assert.equal(grounding.rate, 50)
+  assert.deepEqual(grounding.unknownFiles, ['src/missing.js'])
+  assert.deepEqual(grounding.unknownSymbols, ['missingExport'])
+})
+
 test('clears a lane after it is rerouted away from shared behavior', () => {
   const pricing = createLane({
     id: 'pricing', agent: 'Theo', task: 'Change quote',
@@ -160,11 +213,22 @@ test('makes a handoff receipt from declared scope and evidence', () => {
   assert.equal(receipt.knownRisk.length, 0)
 })
 
+test('excludes completed handoffs from active-lane clearance metrics', () => {
+  const active = createLane({ id: 'active', agent: 'Mira', task: 'Active work', files: ['src/active.js'] })
+  const completed = createLane({ id: 'done', agent: 'Theo', task: 'Finished work', status: 'handoff', files: ['src/done.js'] })
+  const metrics = runwayMetrics({ lanes: [active, completed] })
+
+  assert.equal(metrics.lanes, 1)
+  assert.equal(metrics.totalLanes, 2)
+  assert.equal(metrics.confidence, 100)
+})
+
 test('scans the bundled fixture for JavaScript and JSX exports', () => {
   const scan = scanWorkspace(fileURLToPath(new URL('../fixtures/parcel-ops', import.meta.url)))
   const symbols = scan.exports.map((entry) => entry.symbol)
 
   assert.ok(symbols.includes('quoteTotal'))
   assert.ok(symbols.includes('CheckoutForm'))
+  assert.ok(symbols.includes('DeliveryNote'))
   assert.ok(symbols.includes('calculateTaxAdjustment'))
 })

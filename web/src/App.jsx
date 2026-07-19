@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react'
+import { useMemo, useRef, useState } from 'react'
 import './App.css'
 import {
   assertHandoffAllowed,
@@ -13,6 +13,7 @@ import {
   reserveLaneState,
   rerouteScope,
   runwayMetrics,
+  scopeGrounding,
 } from './core/runway.js'
 import { createDemoState } from './demo/demoState.js'
 
@@ -29,6 +30,12 @@ const severityCopy = {
   high: 'High collision risk',
   medium: 'Caution zone',
   low: 'Low proximity',
+}
+
+function conflictLabel(conflict) {
+  return conflict.evidence.some((item) => item.kind === 'dependency edge')
+    ? 'Dependency review'
+    : severityCopy[conflict.severity]
 }
 
 function Icon({ name, size = 18 }) {
@@ -70,13 +77,18 @@ function App() {
   const [selectedId, setSelectedId] = useState('tax-adjustment')
   const [composerOpen, setComposerOpen] = useState(false)
   const [toast, setToast] = useState('')
+  const importInputRef = useRef(null)
 
-  const conflicts = useMemo(() => deriveConflicts(runway.lanes), [runway.lanes])
+  const conflicts = useMemo(() => deriveConflicts(runway.lanes, runway.scan), [runway.lanes, runway.scan])
   const metrics = useMemo(() => runwayMetrics(runway), [runway])
   const selectedLane = runway.lanes.find((lane) => lane.id === selectedId) ?? runway.lanes[0]
   const selectedConflicts = conflictsForLane(selectedLane.id, conflicts)
   const selectedClearance = laneClearance(selectedLane, conflicts)
   const selectedHasEvidence = Boolean(selectedLane.evidence?.length)
+  const selectedGrounding = scopeGrounding(selectedLane, runway.scan)
+  const demoLane = runway.lanes.find((lane) => lane.id === 'tax-adjustment')
+  const demoClearance = demoLane ? laneClearance(demoLane, conflicts) : null
+  const primaryConflict = conflicts.find((conflict) => conflict.severity === 'critical' || conflict.severity === 'high') ?? conflicts[0]
 
   const notify = (message) => {
     setToast(message)
@@ -95,13 +107,13 @@ function App() {
     }))
   }
 
-  const reserveLane = () => {
+  const reserveLane = (targetLane = selectedLane) => {
     try {
-      const reservation = reserveLaneState(selectedLane, conflicts)
+      const reservation = reserveLaneState(targetLane, conflicts)
       updateLane(
-        selectedLane.id,
+        targetLane.id,
         (lane) => ({ ...lane, status: reservation.status }),
-        { type: reservation.status === 'holding' ? 'hold' : 'launch', lane: selectedLane.id, text: `${selectedLane.agent} ${reservation.status === 'holding' ? 'was held for a collision.' : 'received clearance.'}` },
+        { type: reservation.status === 'holding' ? 'hold' : 'launch', lane: targetLane.id, text: `${targetLane.agent} ${reservation.status === 'holding' ? 'was held for a collision.' : 'received clearance.'}` },
       )
       notify(reservation.status === 'holding'
         ? 'Runway issued a hold: reroute the declared scope before editing.'
@@ -111,11 +123,12 @@ function App() {
     }
   }
 
-  const rerouteLane = () => {
+  const rerouteLane = (targetLane = selectedLane) => {
     try {
-      assertRerouteAllowed(selectedLane)
+      assertRerouteAllowed(targetLane)
+      const targetConflicts = conflictsForLane(targetLane.id, conflicts)
       const candidate = {
-        ...rerouteScope(selectedLane, selectedConflicts),
+        ...rerouteScope(targetLane, targetConflicts),
         status: 'queued',
         note: 'Removed directly overlapping declarations. Recheck clearance before reserving.',
       }
@@ -124,12 +137,12 @@ function App() {
         return
       }
 
-      const nextLanes = runway.lanes.map((lane) => (lane.id === selectedLane.id ? candidate : lane))
-      const nextClearance = laneClearance(candidate, deriveConflicts(nextLanes))
+      const nextLanes = runway.lanes.map((lane) => (lane.id === targetLane.id ? candidate : lane))
+      const nextClearance = laneClearance(candidate, deriveConflicts(nextLanes, runway.scan))
       updateLane(
-        selectedLane.id,
+        targetLane.id,
         () => candidate,
-        { type: 'reroute', lane: selectedLane.id, text: `${selectedLane.agent} removed directly overlapping scope.` },
+        { type: 'reroute', lane: targetLane.id, text: `${targetLane.agent} removed directly overlapping scope.` },
       )
       notify(nextClearance.state === 'hold'
         ? 'Direct overlap was removed, but this lane still holds. Narrow it with the CLI and recheck.'
@@ -139,18 +152,18 @@ function App() {
     }
   }
 
-  const createHandoff = () => {
+  const createHandoff = (targetLane = selectedLane) => {
     try {
-      assertHandoffAllowed(selectedLane, conflicts)
-      if (!selectedHasEvidence) {
+      assertHandoffAllowed(targetLane, conflicts)
+      if (!targetLane.evidence?.length) {
         notify('Attach actual operator-provided evidence with the CLI before creating a handoff.')
         return
       }
-      const receipt = buildHandoff(selectedLane, conflicts)
+      const receipt = buildHandoff(targetLane, conflicts)
       updateLane(
-        selectedLane.id,
+        targetLane.id,
         (lane) => ({ ...lane, status: 'handoff', handoff: receipt }),
-        { type: 'evidence', lane: selectedLane.id, text: `${selectedLane.agent} created a structured handoff.` },
+        { type: 'evidence', lane: targetLane.id, text: `${targetLane.agent} created a structured handoff.` },
       )
       notify('Handoff receipt captured with declared scope, recorded evidence, and remaining risk.')
     } catch (error) {
@@ -175,6 +188,61 @@ function App() {
     URL.revokeObjectURL(href)
     notify('Portable Runway state exported.')
   }
+
+  const importState = async (event) => {
+    const [file] = event.target.files ?? []
+    if (!file) return
+
+    try {
+      const payload = JSON.parse(await file.text())
+      if (!Array.isArray(payload.lanes) || !payload.repo) throw new Error('This file is not a Runway state export.')
+      if (!payload.lanes.length) throw new Error('The imported state has no lanes to inspect.')
+      const lanes = payload.lanes.map((lane) => ({
+        ...createLane(lane),
+        handoff: lane.handoff,
+        updatedAt: lane.updatedAt,
+      }))
+      setRunway({
+        ...payload,
+        lanes,
+        activity: Array.isArray(payload.activity) ? payload.activity : [],
+        scan: payload.scan && typeof payload.scan === 'object' ? payload.scan : {},
+      })
+      setSelectedId(lanes[0]?.id ?? '')
+      notify(`Imported ${lanes.length} declared lanes from ${file.name}.`)
+    } catch (error) {
+      notify(`Import failed: ${error.message}`)
+    } finally {
+      event.target.value = ''
+    }
+  }
+
+  const advanceGuidedDemo = () => {
+    if (!demoLane) {
+      resetDemo()
+      return
+    }
+    setSelectedId(demoLane.id)
+    if (demoClearance?.state === 'hold') rerouteLane(demoLane)
+    else if (demoLane.status === 'queued') reserveLane(demoLane)
+    else if (demoLane.status === 'airborne') createHandoff(demoLane)
+    else resetDemo()
+  }
+
+  const demoStep = demoLane?.status === 'handoff'
+    ? 4
+    : demoLane?.status === 'airborne'
+      ? 3
+      : demoLane?.status === 'queued' && demoClearance?.state !== 'hold'
+        ? 2
+        : 1
+  const demoAction = demoStep === 1
+    ? 'Reroute held lane'
+    : demoStep === 2
+      ? 'Reserve clear lane'
+      : demoStep === 3
+        ? 'Create verified handoff'
+        : 'Replay interception'
 
   const addLane = (event) => {
     event.preventDefault()
@@ -220,6 +288,8 @@ function App() {
         </div>
         <div className="topbar-actions">
           <div className="branch-chip"><Icon name="branch" size={15} /><span>{runway.repo.branch}</span></div>
+          <input ref={importInputRef} className="visually-hidden" type="file" accept="application/json,.json" aria-label="Import Runway state file" onChange={importState} />
+          <button className="button button--ghost import-button" onClick={() => importInputRef.current?.click()}><Icon name="export" size={16} />Import state</button>
           <button className="button button--ghost" onClick={resetDemo}><Icon name="reset" size={16} />Reset demo</button>
           <button className="button button--solid" onClick={() => setComposerOpen(true)}><Icon name="plus" size={16} />Open lane</button>
         </div>
@@ -256,9 +326,9 @@ function App() {
         <main className="main-content">
           <section className="hero-panel">
             <div>
-              <div className="eyebrow eyebrow--lime">AIRSPACE STATUS / {runway.repo.name.toUpperCase()}</div>
-              <h1>Clear scope before code diverges.</h1>
-              <p>Before agents edit, Runway compares the files, exported symbols, and behavioral contracts they voluntarily declare.</p>
+              <div className="eyebrow eyebrow--lime">PRE-EDIT INTERCEPTION / {runway.repo.name.toUpperCase()}</div>
+              <h1>Stop two agents from changing the same behavior.</h1>
+              <p>Runway compares declared files, exported symbols, contracts, and scanned dependency edges—then names the exact reason an agent should hold before code diverges.</p>
             </div>
             <div className="hero-badge">
               <span className="hero-badge__ring" style={{ '--clearance': `${metrics.confidence}%` }}><span /></span>
@@ -266,11 +336,34 @@ function App() {
             </div>
           </section>
 
+          <section className="intercept-strip" aria-label="Current collision interception">
+            <div className="intercept-intro">
+              <span className="intercept-pulse" />
+              <div><span>LIVE DECISION</span><strong>{primaryConflict ? '1 lane held before edit' : 'Airspace clear'}</strong></div>
+            </div>
+            {(primaryConflict?.evidence ?? []).slice(0, 3).map((item) => (
+              <div className="intercept-proof" key={item.kind}><span>{item.kind}</span><code>{item.values[0]}</code></div>
+            ))}
+            {!primaryConflict && <div className="intercept-proof"><span>RESULT</span><code>No blocking overlap</code></div>}
+          </section>
+
+          <section className={`guided-demo guided-demo--step-${demoStep}`} aria-label="45 second guided demo">
+            <div className="guided-demo__copy">
+              <span className="eyebrow eyebrow--lime">45-SECOND JUDGE PATH</span>
+              <strong>{demoStep === 1 ? 'Runway caught three matching declarations.' : demoStep === 2 ? 'The direct overlap is gone. Recheck passed.' : demoStep === 3 ? 'The lane is isolated and airborne.' : 'Collision avoided. Evidence preserved.'}</strong>
+              <p>{demoStep === 1 ? 'Pricing already owns the shared behavior, so Sol cannot start yet.' : demoStep === 2 ? 'Sol now owns only the tax module and tax-adjustment contract.' : demoStep === 3 ? 'Turn the recorded fixture test into a structured receipt.' : 'The two agents can continue independently with an auditable handoff.'}</p>
+            </div>
+            <div className="guided-demo__progress" aria-label={`Demo step ${demoStep} of 4`}>
+              {[1, 2, 3, 4].map((step) => <span key={step} className={step <= demoStep ? 'is-complete' : ''}>{step}</span>)}
+            </div>
+            <button className={`button ${demoStep === 4 ? 'button--ghost' : 'button--solid'}`} onClick={advanceGuidedDemo}>{demoAction}<Icon name="arrow" size={16} /></button>
+          </section>
+
           <section className="metric-grid" aria-label="Runway metrics">
-            <article className="metric-card"><span>ACTIVE LANES</span><strong>{metrics.lanes}</strong><small>{metrics.ready} cleared or protected</small></article>
+            <article className="metric-card"><span>ACTIVE LANES</span><strong>{metrics.lanes}</strong><small>{metrics.ready} cleared or reviewable</small></article>
             <article className="metric-card metric-card--alert"><span>HOLDING</span><strong>{metrics.holding}</strong><small>requires a reroute</small></article>
-            <article className="metric-card"><span>COLLISION SIGNALS</span><strong>{metrics.conflicts}</strong><small>file, symbol, or contract</small></article>
-            <article className="metric-card"><span>EVIDENCE ATTACHED</span><strong>{metrics.evidenceCount}</strong><small>commands with outcomes</small></article>
+            <article className="metric-card"><span>EXACT OVERLAPS</span><strong>{metrics.exactOverlapCount}</strong><small>named before implementation</small></article>
+            <article className="metric-card"><span>REPO GROUNDED</span><strong>{metrics.groundedRate ?? '—'}{metrics.groundedRate !== null && <small className="metric-unit">%</small>}</strong><small>declared files & symbols found</small></article>
           </section>
 
           <section className="operations-grid">
@@ -316,7 +409,7 @@ function App() {
             <article id="collision-radar" className="panel radar-panel">
               <div className="panel-heading">
                 <div><div className="eyebrow">CLEARANCE BEFORE EDIT</div><h2>Collision radar</h2></div>
-                <span className="radar-live"><i />Declared scope</span>
+                <span className="radar-live"><i />Scope + repo scan</span>
               </div>
               <div className="radar-visual" aria-label="Collision radar graphic">
                 <div className="radar-ring radar-ring--one" /><div className="radar-ring radar-ring--two" /><div className="radar-ring radar-ring--three" />
@@ -325,14 +418,14 @@ function App() {
                 <span className="radar-blip radar-blip--one" /><span className="radar-blip radar-blip--two" /><span className="radar-blip radar-blip--three" />
               </div>
               <div className="radar-summary">
-                <span>Runway compares declared scope, not private prompts or edits.</span>
+                <span>Declared intent is checked against exact overlap and one-hop scanned imports.</span>
                 <strong>{metrics.conflicts} signals found</strong>
               </div>
               <div className="signal-list">
                 {conflicts.slice(0, 3).map((conflict) => (
                   <button key={conflict.id} className="signal-row" onClick={() => setSelectedId(conflict.laneIds.includes(selectedLane.id) ? selectedLane.id : conflict.laneIds[0])}>
                     <span className={`severity severity--${conflict.severity}`} />
-                    <span><strong>{severityCopy[conflict.severity]}</strong><small>{conflict.evidence[0]?.kind}: {conflict.evidence[0]?.values.join(', ')}</small></span>
+                    <span><strong>{conflictLabel(conflict)}</strong><small>{conflict.laneIds.join(' × ')} · {conflict.evidence[0]?.kind}: {conflict.evidence[0]?.values.join(', ')}</small></span>
                     <b>{conflict.score}</b>
                   </button>
                 ))}
@@ -354,15 +447,24 @@ function App() {
                 <ScopeColumn title="CONTRACTS" items={selectedLane.contracts} />
               </div>
               <div className="lane-note"><Icon name="shield" size={16} /><span>{selectedLane.note || 'No extra constraints declared.'}</span></div>
+              {selectedGrounding.available && (
+                <div className={`grounding-row ${selectedGrounding.rate === 100 ? 'grounding-row--complete' : ''}`}>
+                  <span><Icon name="check" size={15} />Repository grounding</span>
+                  <div>
+                    <strong>{selectedGrounding.grounded}/{selectedGrounding.declared} file & symbol declarations found</strong>
+                    {selectedGrounding.rate < 100 && <small>Review: {[...selectedGrounding.unknownFiles, ...selectedGrounding.unknownSymbols].join(', ')}</small>}
+                  </div>
+                </div>
+              )}
               <div className="detail-actions">
                 {selectedLane.status === 'handoff' ? (
                   <span className="action-note">Handoff complete. Open a new lane for follow-up work.</span>
                 ) : selectedClearance.state === 'blocked' ? (
                   <span className="action-note">Declare at least one bounded scope before reserving.</span>
                 ) : selectedClearance.state === 'hold' ? (
-                  <button className="button button--warning" onClick={rerouteLane}><Icon name="arrow" size={16} />Remove overlap & recheck</button>
+                  <button className="button button--warning" onClick={() => rerouteLane()}><Icon name="arrow" size={16} />Remove overlap & recheck</button>
                 ) : selectedLane.status === 'queued' ? (
-                  <button className="button button--solid" onClick={reserveLane}><Icon name="runway" size={16} />Reserve this lane</button>
+                  <button className="button button--solid" onClick={() => reserveLane()}><Icon name="runway" size={16} />Reserve this lane</button>
                 ) : selectedClearance.state === 'protected' ? (
                   <span className="action-note"><Icon name="shield" size={16} />Protected owner</span>
                 ) : (
@@ -370,7 +472,7 @@ function App() {
                 )}
                 {selectedLane.status === 'airborne' && selectedClearance.state !== 'hold' && (
                   selectedHasEvidence ? (
-                    <button className="button button--ghost" onClick={createHandoff}><Icon name="check" size={16} />Create handoff</button>
+                    <button className="button button--ghost" onClick={() => createHandoff()}><Icon name="check" size={16} />Create handoff</button>
                   ) : <span className="action-note">Attach operator-provided evidence with the CLI before handoff.</span>
                 )}
               </div>
@@ -384,7 +486,7 @@ function App() {
               {selectedConflicts.length > 0 ? (
                 <div className="risk-evidence">
                   {selectedConflicts.map((conflict) => (
-                    <div key={conflict.id} className="risk-row"><span className={`severity severity--${conflict.severity}`} /><div><strong>{severityCopy[conflict.severity]}</strong>{conflict.evidence.map((item) => <p key={item.kind}>{item.kind}: <code>{item.values.join(', ')}</code></p>)}</div><b>{conflict.score}</b></div>
+                    <div key={conflict.id} className="risk-row"><span className={`severity severity--${conflict.severity}`} /><div><strong>{conflictLabel(conflict)}</strong>{conflict.evidence.map((item) => <p key={item.kind}>{item.kind}: <code>{item.values.join(', ')}</code></p>)}</div><b>{conflict.score}</b></div>
                   ))}
                 </div>
               ) : <div className="no-risk"><Icon name="check" size={20} />No declared collision evidence.</div>}

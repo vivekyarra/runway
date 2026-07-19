@@ -108,6 +108,36 @@ test('CLI accepts an empty reroute value without crashing and keeps remaining sc
   }
 })
 
+test('CLI persists scan grounding and returns dependency-based clearance evidence', () => {
+  const root = makeRoot()
+  try {
+    mkdirSync(path.join(root, 'src', 'checkout'), { recursive: true })
+    writeFileSync(path.join(root, 'src', 'quote.js'), 'export function quoteTotal() { return 42 }\n')
+    writeFileSync(
+      path.join(root, 'src', 'checkout', 'CheckoutForm.jsx'),
+      "import { quoteTotal } from '../quote.js'\nexport function CheckoutForm() { return quoteTotal() }\n",
+    )
+
+    run(root, 'init', '--root', root)
+    const scan = run(root, 'scan', '--root', root, '--write')
+    assert.equal(scan.persisted, true)
+
+    run(root, 'lane', 'create', '--root', root, '--id', 'pricing', '--agent', 'Theo', '--task', 'Change quote', '--files', 'src/quote.js', '--symbols', 'quoteTotal')
+    run(root, 'lane', 'reserve', '--root', root, '--id', 'pricing')
+    const checkout = run(root, 'lane', 'create', '--root', root, '--id', 'checkout', '--agent', 'Mira', '--task', 'Change checkout', '--files', 'src/checkout/CheckoutForm.jsx', '--symbols', 'CheckoutForm')
+
+    assert.equal(checkout.grounding.rate, 100)
+    assert.equal(checkout.clearance.state, 'caution')
+    assert.deepEqual(checkout.conflicts[0].evidence, [{
+      kind: 'dependency edge',
+      values: ['src/checkout/CheckoutForm.jsx -> src/quote.js'],
+      weight: 'repository',
+    }])
+  } finally {
+    removeRoot(root)
+  }
+})
+
 test('CLI serializes concurrent lane creation and leaves valid complete state', async () => {
   const root = makeRoot()
   try {

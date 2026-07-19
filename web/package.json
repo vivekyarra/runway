@@ -1,8 +1,8 @@
 {
   "name": "runway-codex-control-tower",
-  "description": "Pre-edit declared-scope clearance for parallel Codex agents.",
+  "description": "Repository-grounded pre-edit scope clearance for parallel Codex agents.",
   "private": true,
-  "version": "1.0.0",
+  "version": "1.1.0",
   "engines": { "node": ">=20.19.0" },
   "type": "module",
   "scripts": {

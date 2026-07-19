@@ -10,6 +10,8 @@ const severityForScore = (score) => {
 const normalizeText = (value) => String(value ?? '').trim().toLowerCase()
 const normalizeSymbol = (value) => String(value ?? '').trim()
 
+const SOURCE_EXTENSIONS = ['.js', '.jsx', '.ts', '.tsx', '.mjs', '.cjs']
+
 export function normalizeFile(value) {
   const segments = []
   for (const segment of String(value ?? '').trim().replace(/\\/g, '/').split('/')) {
@@ -46,6 +48,77 @@ const sharedArea = (left = [], right = []) => {
   return overlap(left.map(moduleArea), right.map(moduleArea), normalizeFile)
 }
 
+const dirname = (file) => {
+  const segments = normalizeFile(file).split('/')
+  segments.pop()
+  return segments.join('/')
+}
+
+const resolveScannedImport = (fromFile, specifier, knownFiles) => {
+  if (!String(specifier ?? '').startsWith('.')) return null
+  const base = normalizeFile(`${dirname(fromFile)}/${specifier}`)
+  const candidates = [base, ...SOURCE_EXTENSIONS.map((extension) => `${base}${extension}`)]
+  candidates.push(...SOURCE_EXTENSIONS.map((extension) => `${base}/index${extension}`))
+  return candidates.find((candidate) => knownFiles.has(candidate)) ?? null
+}
+
+export function buildDependencyEdges(scan = {}) {
+  const files = Array.isArray(scan?.files) ? scan.files : []
+  const knownFiles = new Set(files.map((entry) => normalizeFile(entry.file)).filter(Boolean))
+  const edges = []
+  const seen = new Set()
+
+  for (const entry of files) {
+    const from = normalizeFile(entry.file)
+    for (const specifier of entry.imports ?? []) {
+      const to = resolveScannedImport(from, specifier, knownFiles)
+      if (!to) continue
+      const id = `${from}->${to}`
+      if (seen.has(id)) continue
+      seen.add(id)
+      edges.push({ from, to })
+    }
+  }
+
+  return edges.sort((left, right) => `${left.from}:${left.to}`.localeCompare(`${right.from}:${right.to}`))
+}
+
+const dependencyOverlap = (left = [], right = [], scan = {}) => {
+  const leftFiles = new Set(cleanList(left, normalizeFile))
+  const rightFiles = new Set(cleanList(right, normalizeFile))
+  return buildDependencyEdges(scan)
+    .filter((edge) => (
+      (leftFiles.has(edge.from) && rightFiles.has(edge.to))
+      || (rightFiles.has(edge.from) && leftFiles.has(edge.to))
+    ))
+    .map((edge) => `${edge.from} -> ${edge.to}`)
+}
+
+export function scopeGrounding(lane = {}, scan = {}) {
+  const scannedFiles = Array.isArray(scan?.files) ? scan.files : []
+  if (!scannedFiles.length) {
+    return { available: false, declared: 0, grounded: 0, rate: null, unknownFiles: [], unknownSymbols: [] }
+  }
+
+  const knownFiles = new Set(scannedFiles.map((entry) => normalizeFile(entry.file)).filter(Boolean))
+  const knownSymbols = new Set((scan.exports ?? []).map((entry) => normalizeSymbol(entry.symbol)).filter(Boolean))
+  const files = cleanList(lane.files, normalizeFile)
+  const symbols = cleanList(lane.symbols, normalizeSymbol)
+  const unknownFiles = files.filter((file) => !knownFiles.has(file))
+  const unknownSymbols = symbols.filter((symbol) => !knownSymbols.has(symbol))
+  const declared = files.length + symbols.length
+  const grounded = declared - unknownFiles.length - unknownSymbols.length
+
+  return {
+    available: true,
+    declared,
+    grounded,
+    rate: declared ? Math.round((grounded / declared) * 100) : 100,
+    unknownFiles,
+    unknownSymbols,
+  }
+}
+
 const establishedOwner = (left, right) => {
   const leftAirborne = left.status === 'airborne'
   const rightAirborne = right.status === 'airborne'
@@ -75,11 +148,12 @@ export function assertDeclaredScope(lane = {}) {
   }
 }
 
-export function inspectPair(left, right) {
+export function inspectPair(left, right, scan = {}) {
   const sharedFiles = overlap(left.files, right.files, normalizeFile)
   const sharedSymbols = overlap(left.symbols, right.symbols, normalizeSymbol)
   const sharedContracts = overlap(left.contracts, right.contracts, normalizeText)
   const sharedAreas = sharedArea(left.files, right.files)
+  const sharedDependencies = dependencyOverlap(left.files, right.files, scan)
 
   let score = 0
   const evidence = []
@@ -100,6 +174,10 @@ export function inspectPair(left, right) {
     score += 18
     evidence.push({ kind: 'shared module area', values: sharedAreas, weight: 'proximity' })
   }
+  if (!sharedFiles.length && sharedDependencies.length) {
+    score += 26
+    evidence.push({ kind: 'dependency edge', values: sharedDependencies, weight: 'repository' })
+  }
 
   score = Math.min(score, 100)
   return {
@@ -113,13 +191,13 @@ export function inspectPair(left, right) {
   }
 }
 
-export function deriveConflicts(lanes = []) {
+export function deriveConflicts(lanes = [], scan = {}) {
   const active = lanes.filter((lane) => LIVE_STATUSES.has(lane.status))
   const conflicts = []
 
   for (let first = 0; first < active.length; first += 1) {
     for (let second = first + 1; second < active.length; second += 1) {
-      const collision = inspectPair(active[first], active[second])
+      const collision = inspectPair(active[first], active[second], scan)
       if (collision.hasConflict) conflicts.push(collision)
     }
   }
@@ -200,23 +278,35 @@ export function rerouteScope(lane, conflicts = []) {
 }
 
 export function runwayMetrics(state) {
-  const lanes = state?.lanes ?? []
-  const conflicts = deriveConflicts(lanes)
+  const allLanes = state?.lanes ?? []
+  const lanes = allLanes.filter((lane) => LIVE_STATUSES.has(lane.status))
+  const conflicts = deriveConflicts(lanes, state?.scan)
   const clearances = lanes.map((lane) => laneClearance(lane, conflicts))
   const clear = clearances.filter((clearance) => clearance.state === 'clear').length
   const protectedOwners = clearances.filter((clearance) => clearance.state === 'protected').length
+  const caution = clearances.filter((clearance) => clearance.state === 'caution').length
   const holding = clearances.filter((clearance) => clearance.state === 'hold').length
-  const evidenceCount = lanes.reduce((total, lane) => total + (lane.evidence?.length ?? 0), 0)
-  const ready = clear + protectedOwners
+  const evidenceCount = allLanes.reduce((total, lane) => total + (lane.evidence?.length ?? 0), 0)
+  const ready = clear + protectedOwners + caution
+  const groundings = allLanes.map((lane) => scopeGrounding(lane, state?.scan)).filter((grounding) => grounding.available)
+  const declaredScope = groundings.reduce((total, grounding) => total + grounding.declared, 0)
+  const groundedScope = groundings.reduce((total, grounding) => total + grounding.grounded, 0)
+  const exactOverlapCount = conflicts.reduce((total, conflict) => total + conflict.evidence.filter((item) => (
+    item.kind === 'shared file' || item.kind === 'shared symbol' || item.kind === 'shared contract'
+  )).reduce((count, item) => count + item.values.length, 0), 0)
 
   return {
     lanes: lanes.length,
+    totalLanes: allLanes.length,
     clear,
     protected: protectedOwners,
+    caution,
     ready,
     holding,
     conflicts: conflicts.length,
     evidenceCount,
+    exactOverlapCount,
+    groundedRate: declaredScope ? Math.round((groundedScope / declaredScope) * 100) : null,
     confidence: lanes.length ? Math.round((ready / lanes.length) * 100) : 100,
   }
 }

@@ -14,6 +14,7 @@ import {
   laneClearance,
   reserveLaneState,
   runwayMetrics,
+  scopeGrounding,
 } from '../src/core/runway.js'
 import { createDemoState } from '../src/demo/demoState.js'
 
@@ -268,7 +269,7 @@ Usage:
   node bin/runway.mjs lane reroute --root <repo> --id <lane> [--files a,b] [--symbols a,b] [--contracts a,b]
   node bin/runway.mjs lane handoff --root <repo> --id <lane> --evidence <command> [--result passing] [--note <text>]
 
-Runway is intentionally heuristic: clearance compares declared lane scope. Scan inventories common named JS/TS exports, imports, and routes separately; neither guarantees a conflict-free merge.
+  Runway is intentionally heuristic: clearance compares declared lane scope. A persisted scan grounds files and symbols against the repository and adds one-hop relative-import review signals; it does not infer intent or guarantee a conflict-free merge.
 `)
 }
 
@@ -293,16 +294,16 @@ async function commandScan(options) {
       state.scan = scan
       addActivity(state, 'scan', 'control', `Scanned ${scan.files.length} JavaScript/TypeScript files.`)
       saveState(root, state)
-      print(scan)
+      print({ ...scan, persisted: true, state: statePath(root) })
     })
   }
-  print(scan)
+  print({ ...scan, persisted: false })
 }
 
 function commandStatus(options) {
   const root = resolveRoot(options)
   const state = loadState(root)
-  const conflicts = deriveConflicts(state.lanes)
+  const conflicts = deriveConflicts(state.lanes, state.scan)
   print({
     repo: state.repo,
     metrics: runwayMetrics(state),
@@ -311,6 +312,7 @@ function commandStatus(options) {
       agent: lane.agent,
       status: lane.status,
       clearance: laneClearance(lane, conflicts),
+      grounding: scopeGrounding(lane, state.scan),
     })),
     conflicts,
     state: statePath(root),
@@ -335,15 +337,15 @@ async function commandLane(action, options) {
       state.lanes.push(lane)
       addActivity(state, 'reserve', lane.id, `${lane.agent} declared ${lane.id}.`)
       saveState(root, state)
-      const conflicts = deriveConflicts(state.lanes)
-      print({ ok: true, lane, clearance: laneClearance(lane, conflicts), conflicts: conflicts.filter((item) => item.laneIds.includes(lane.id)) })
+      const conflicts = deriveConflicts(state.lanes, state.scan)
+      print({ ok: true, lane, clearance: laneClearance(lane, conflicts), grounding: scopeGrounding(lane, state.scan), conflicts: conflicts.filter((item) => item.laneIds.includes(lane.id)) })
       return
     }
 
     const laneId = requireOption(options, 'id')
     const lane = state.lanes.find((item) => item.id === laneId)
     if (!lane) throw new Error(`Unknown lane: ${laneId}`)
-    const conflicts = deriveConflicts(state.lanes)
+    const conflicts = deriveConflicts(state.lanes, state.scan)
 
     if (action === 'reserve') {
       const reservation = reserveLaneState(lane, conflicts)
@@ -368,8 +370,8 @@ async function commandLane(action, options) {
       lane.updatedAt = now()
       addActivity(state, 'reroute', lane.id, `${lane.agent} declared a new scope.`)
       saveState(root, state)
-      const nextConflicts = deriveConflicts(state.lanes)
-      print({ ok: true, lane, clearance: laneClearance(lane, nextConflicts), conflicts: nextConflicts.filter((item) => item.laneIds.includes(lane.id)) })
+      const nextConflicts = deriveConflicts(state.lanes, state.scan)
+      print({ ok: true, lane, clearance: laneClearance(lane, nextConflicts), grounding: scopeGrounding(lane, state.scan), conflicts: nextConflicts.filter((item) => item.laneIds.includes(lane.id)) })
       return
     }
 
