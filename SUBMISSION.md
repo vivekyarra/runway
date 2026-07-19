@@ -130,7 +130,7 @@ Show `03_build_log.md`, then return to the hero.
 
 - Dashboard starts in its initial state; use **Replay judge demo** if needed.
 - Upload `docs/runway-judge-demo.png` as the first Devpost project image.
-- Upload `docs/runway-architecture.png` as the architecture visual.
+- Upload `docs/runway-architecture.svg` as the architecture visual if Devpost accepts SVG; otherwise export it to PNG without altering its content.
 - No notifications, bookmarks, credentials, API keys, or unrelated tabs are visible.
 - Exact collision values are readable at 1080p.
 - Terminal is already in `web`; commands are pasted, not typed slowly.
