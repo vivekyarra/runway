@@ -94,3 +94,26 @@
 
 - Audited the literal first paragraphs after a final external review. The README and Devpost short description now open with the real coordination failure before introducing the solution; Codex and GPT-5.6 remain documented later as the build method rather than presented as the reason for the product.
 - Made the bundled sample path explicit near the no-rebuild instructions: `web/fixtures/parcel-ops` contains the inspectable source, focused tests, and Pricing/Tax/Checkout scenario used by the dashboard and CLI, with no key, hosted dependency, or separate data download.
+
+## 2026-07-19 - real collision replay milestone
+
+- Accepted the valid part of an external differentiation review: a fixture-only collision proved implementation but did not establish external impact. Rejected a fake live-agent simulation as theater and rejected broad blast-radius prediction because it would require semantic-analysis claims outside the product boundary.
+- Researched public primary-source pull-request history and found ESLint issue #20014 produced three independent implementation attempts. PR #20487 and PR #20526 were explicitly closed to avoid duplicating the earlier PR #20248. The replay uses only factual metadata, identifiers, exact Git refs, and MIT-licensed source identifiers; it includes a non-affiliation notice.
+- Added generic `replay --left <base>..<head> --right <base>..<head>` support in milestone `fc1dff4`. The CLI resolves commit SHAs, reads changed paths and JS/TS declaration lines, uses the shared collision engine, and emits a counterfactual artifact. A real run exposed comment/context false positives, which were fixed before publishing the evidence.
+- Published `docs/replays/eslint-20014.json`: four shared paths, shared changed function `isEvaluatedDuringInitialization`, exact source links and refs, explicit counterfactual disclosure, and SHA-256 `690814f55c81bd9b3c0224f53cbe827551c82287c1e93d55c65c72c7d92e8d9e`.
+
+## 2026-07-19 - executed-proof milestone
+
+- Replaced operator-asserted passing evidence with `lane verify` in milestone `8f12bdd`. Runway executes the exact trusted command in the target repository, records exit status, timeout, duration, stdout/stderr byte counts and SHA-256 hashes, then reacquires the state lock and reads Git again.
+- A failed command, timeout, lane scope/status mutation during execution, or unexpected post-command Git path prevents handoff. Manual CLI handoff evidence is disabled. The scope check remains file-level and cooperative; no runtime write enforcement or semantic proof is claimed.
+- Added regression coverage for failing command exit 7, successful executed proof, unexpected drift after a passing command, and lane mutation during verification. The suite reached 30 tests.
+
+## 2026-07-19 - replay-first judge experience
+
+- Rebuilt the first fold around the public incident: "One issue. Three implementations. Two duplicate-work closures." The replay card shows the three-PR timeline, four shared paths, shared function, verdict, exact refs, source links, counterfactual disclosure, artifact path, fingerprint, license, and non-affiliation statement.
+- Added `replay verify --file` and source metadata fields. Artifact verification recomputes the published fingerprint and rejects tampering; it is described as a fingerprint, not a signature.
+- Rewrote the README, Devpost copy, Codex skill, video plan, and architecture around the complete loop: Collision Replay -> Declare -> Reserve -> Run proof -> post-command Git audit -> receipt. The browser remains explicitly a fixture and never claims to execute Git or tests.
+- Captured new Runway-owned 1280x720 submission images at `docs/runway-real-replay.png` and `docs/runway-judge-demo.png`. Desktop and 390x844 browser QA found no horizontal overflow; exact-ref expansion worked and the page emitted no console errors.
+- Public sources: https://github.com/eslint/eslint/pull/20248, https://github.com/eslint/eslint/pull/20487, https://github.com/eslint/eslint/pull/20526, and https://github.com/eslint/eslint/blob/main/LICENSE.
+- Rehearsing the documented disposable-repository video path exposed that the copied fixture inherited ESM mode only from the parent `web/package.json`. Added a fixture-local `package.json`, then reran the exact sequence: the focused test passed while undeclared `src/quote.js` still blocked handoff; after restoring only that path, the second verification created a conformant receipt.
+- Rechecked the live Official Rules after the replay-first pass. The required under-three-minute public YouTube demo with audio, Codex/GPT-5.6 explanation, public repository, `/feedback` Session ID, Developer Tools installation/platform/no-rebuild path, four equally weighted criteria, and third-party-mark restriction are all reflected in `SUBMISSION.md`. The video uses only Runway-owned visuals and a generic source label; the real primary-source links remain inspectable outside the recording.

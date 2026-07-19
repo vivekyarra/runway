@@ -1,11 +1,11 @@
 ---
 name: runway
-description: Coordinate two or more coding agents working in the same JavaScript or TypeScript repository. Declare bounded scope before editing, honor holds, check the actual Git changed-file set against that scope, run real verification, and leave an evidence-backed handoff.
+description: Coordinate coding agents in the same JavaScript or TypeScript repository. Declare bounded scope before editing, honor holds, let Runway execute a trusted verification command, audit the resulting Git paths, and leave an evidence-backed handoff.
 ---
 
 # Runway
 
-Runway is a local, cooperative code-scope contract: declare before code, then prove the changed files stayed inside the lane before handoff. It is not an agent runtime, write lock, merge solver, or proof of correctness.
+Runway is a local, cooperative code-scope contract: declare before code, then prove the changed files stayed inside the lane before handoff. It can also replay two historical Git ranges to expose duplicated implementation scope. It is not an agent runtime, write lock, merge solver, or proof of correctness.
 
 Set RUNWAY_CLI to the absolute path of the Runway checkout before using this skill from another repository:
 
@@ -60,21 +60,26 @@ Use node $env:RUNWAY_CLI for every command below. It only writes the target repo
 
 ## During and after work
 
-1. Run focused verification in the target repository.
-2. Audit the current Git worktree before handoff. Run this in the lane's dedicated, clean worktree so unrelated pre-existing changes do not contaminate the result. Runway reads staged, unstaged, and untracked paths, ignores its own `.runway` state, and blocks handoff if any changed file falls outside the declaration.
+1. Use a dedicated, clean worktree so unrelated pre-existing changes do not contaminate the result.
+2. Ask Runway to execute a focused verification command. Runway captures the exit status, duration, output hashes, and byte counts; then it re-reads staged, unstaged, and untracked Git paths and blocks handoff if any changed file falls outside the declaration.
 
    ~~~powershell
-   node $env:RUNWAY_CLI lane audit --root . --id <lane>
+   node $env:RUNWAY_CLI lane verify --root . --id <lane> --command "node --test <focused-test>" --note "<remaining risk or next step>"
    ~~~
 
-   If the audit reports `unexpectedFiles`, revert or coordinate those edits, or reroute and reserve a truthful expanded declaration before continuing. Reroute and reserve both invalidate an older audit.
+   Only pass a command you trust: `lane verify` executes the exact shell command in the target repository. If the command fails, times out, or the post-command audit reports `unexpectedFiles`, the lane stays airborne and no handoff receipt is created. Revert or coordinate unexpected edits, or reroute and reserve a truthful expanded declaration before continuing. Reroute and reserve both invalidate older verification.
 
-3. Hand off only an airborne lane with a passing, current scope audit and the command you actually ran with its observed result.
-
-   ~~~powershell
-   node $env:RUNWAY_CLI lane handoff --root . --id <lane> --evidence "<command actually run>" --result "passing" --note "<remaining risk or next step>"
-   ~~~
-
-4. Report the lane ID, diff-audit result, verification command and outcome, and any remaining risk in the final task summary.
+3. Report the lane ID, Runway-executed verification result, post-command Git audit, output hashes, and remaining risk in the final task summary. Manual `lane handoff --result passing` is intentionally rejected because self-reported proof is not proof.
 
 The audit is file-level conformance, not semantic enforcement. It catches undeclared changed paths; it cannot prove that edits inside an allowed file matched the declared symbol or contract, and a process can still ignore the protocol.
+
+## Optional historical replay
+
+Use replay as a forensic adoption path when two real Git ranges appear to duplicate work:
+
+~~~powershell
+node $env:RUNWAY_CLI replay --root . --left "<base-a>..<head-a>" --right "<base-b>..<head-b>" --left-label "<label-a>" --right-label "<label-b>" --out replay.json
+node $env:RUNWAY_CLI replay verify --file replay.json
+~~~
+
+Replay extracts changed JS/TS paths and changed function declarations, runs them through the same collision engine, and creates a hash-verifiable artifact. It is counterfactual evidence: historical diffs stand in for scopes that should have been declared before work. Never claim Runway was deployed on the historical repository or caused the original outcome.

@@ -1,20 +1,110 @@
 # Runway
 
-> Declare before code. Prove the diff after.
+> Replay duplicate work from Git. Stop the next collision before code.
 
-Parallel coding agents can independently implement the same behavior—even in different files—so Git may not expose the coordination failure until code has already diverged. Runway controls that failure boundary with a code-scope contract: each agent declares the files, exported symbols, and behavioral contracts it expects to change, then the CLI compares the actual Git changed-file set with that declaration before handoff.
+One public ESLint issue produced three independent implementations. Two later pull requests were closed to avoid duplicating work. Runway reconstructs two of those implementations from their exact Git refs and finds four shared paths plus the same changed function. It then turns that eventual human discovery into a pre-edit control: coding agents declare files, symbols, and behavioral contracts before work begins.
 
-Runway is entered in the **Developer Tools** track of OpenAI Build Week.
+Runway is an OpenAI Build Week **Developer Tools** project.
 
-[**Open the live judge demo**](https://vivekyarra.github.io/runway/) · [View the verified deployment](https://github.com/vivekyarra/runway/actions/workflows/pages.yml)
+[**Open the live judge demo**](https://vivekyarra.github.io/runway/) | [Inspect the replay artifact](docs/replays/eslint-20014.json) | [See deployment verification](https://github.com/vivekyarra/runway/actions/workflows/pages.yml)
 
-![Runway catches a three-signal agent collision before editing](docs/runway-judge-demo.png)
+![Runway opens with a real duplicate-work incident from public Git history](docs/runway-judge-demo.png)
 
-## Judge this build in 90 seconds
+## Judge it in 90 seconds
 
-The fastest path is the [public hosted demo](https://vivekyarra.github.io/runway/). No account, API key, install, or rebuild is required.
+Open the [hosted demo](https://vivekyarra.github.io/runway/). No account, API key, install, or rebuild is required.
 
-For the local fallback, only Node.js 20.19+ is required:
+1. Read the collision replay: exact public Git ranges, four shared paths, and the shared `isEvaluatedDuringInitialization` function.
+2. Expand **Inspect exact refs + receipt**. The source links, commit SHAs, disclosure, and artifact fingerprint are inspectable.
+3. Continue to the live prevention flow. Tax is held before editing because Pricing already owns the same file, symbol, and contract.
+4. Reroute, reserve, inspect the fixture diff, and create the browser fixture receipt.
+5. Use the CLI path below for the real proof: Runway executes the trusted test command itself, then audits Git before it creates a handoff.
+
+The browser is an interactive, deterministic fixture. It never claims to run Git or shell commands. The CLI is the executable product path.
+
+![The collision replay flows directly into a live pre-edit hold and guided resolution](docs/runway-real-replay.png)
+
+## The problem
+
+Parallel coding agents can independently implement the same behavior, even in different files. Worktrees isolate edit locations. Git and merge tools react after code exists. Task routers assign work, but they do not necessarily compare intended code scope. The cheap intervention point is earlier:
+
+> Before two agents start, do they intend to change the same behavior?
+
+Files alone are not enough. Two lanes can name different paths while changing the same exported symbol or behavioral contract. Runway makes that intent inspectable before work and checks the actual changed-file set afterward.
+
+## The differentiator: Collision Replay
+
+Runway can turn two historical Git ranges into a provenance-backed counterfactual:
+
+- resolves both ranges to exact commit SHAs;
+- extracts changed JavaScript/TypeScript paths and changed declaration lines;
+- feeds those scopes through the same deterministic collision engine used by live lanes;
+- emits exact overlap evidence and a SHA-256-fingerprinted JSON artifact;
+- verifies the artifact has not changed since its published fingerprint was computed.
+
+The checked-in replay uses public history from ESLint PRs [#20248](https://github.com/eslint/eslint/pull/20248) and [#20487](https://github.com/eslint/eslint/pull/20487). PR #20487 was closed to avoid duplicating the earlier work; a third implementation, [#20526](https://github.com/eslint/eslint/pull/20526), was also closed as duplicate work. Runway was not deployed there. Historical diffs stand in for the scopes that should have been declared, so the result proves the overlap existed and shows what Runway *would* have held for review.
+
+Verify the published artifact from `web`:
+
+~~~powershell
+node bin\runway.mjs replay verify --file ..\docs\replays\eslint-20014.json
+~~~
+
+Published artifact SHA-256:
+
+~~~text
+690814f55c81bd9b3c0224f53cbe827551c82287c1e93d55c65c72c7d92e8d9e
+~~~
+
+### Reproduce the replay from public Git refs
+
+This creates a separate repository under the system temp directory. It does not modify the Runway checkout.
+
+~~~powershell
+cd web
+$replayRoot = Join-Path ([IO.Path]::GetTempPath()) ("runway-eslint-replay-" + (Get-Date -Format 'yyyyMMdd-HHmmss'))
+git init $replayRoot
+git -C $replayRoot remote add origin https://github.com/eslint/eslint.git
+git -C $replayRoot fetch --depth=1 origin aeed0078ca2f73d4744cc522102178d45b5be64e:refs/runway/base-20248 pull/20248/head:refs/runway/pr-20248
+git -C $replayRoot fetch --depth=1 origin 8330d238ae6adb68bb6a1c9381e38cfedd990d94:refs/runway/base-20487 pull/20487/head:refs/runway/pr-20487
+
+node bin\runway.mjs replay `
+  --root $replayRoot `
+  --left "refs/runway/base-20248..refs/runway/pr-20248" `
+  --left-label "PR #20248" `
+  --left-task "Fix self-referential initializer handling" `
+  --left-url "https://github.com/eslint/eslint/pull/20248" `
+  --left-created-at "2025-10-25T17:46:34Z" `
+  --right "refs/runway/base-20487..refs/runway/pr-20487" `
+  --right-label "PR #20487" `
+  --right-task "Add deferred-reference option" `
+  --right-url "https://github.com/eslint/eslint/pull/20487" `
+  --right-created-at "2026-02-07T18:39:24Z" `
+  --source-url "https://github.com/eslint/eslint" `
+  --source-license MIT `
+  --out (Join-Path $replayRoot 'replay.json')
+
+node bin\runway.mjs replay verify --file (Join-Path $replayRoot 'replay.json')
+~~~
+
+The source repository is MIT licensed. Runway is not affiliated with or endorsed by ESLint; see [the replay notice](docs/replays/NOTICE.md).
+
+## What works today
+
+- **Historical collision replay:** exact Git refs become inspectable changed-path and changed-function overlap evidence.
+- **Pre-edit clearance:** exact files, case-sensitive exported symbols, behavioral contracts, module proximity, and one-hop relative imports produce clear, caution, protected-owner, or hold decisions.
+- **Repository grounding:** a persisted JS/TS scan identifies declared files and symbols that exist and names unknown declarations.
+- **Explainable decisions:** every hold or caution names the path, symbol, contract, or dependency edge that caused it.
+- **Runway-executed proof:** `lane verify` runs the exact trusted command, captures exit status, timing, output hashes, and byte counts, then performs a fresh Git audit.
+- **Actual-diff conformance:** staged, unstaged, and untracked paths are compared with the declared file boundary after the command runs.
+- **Guarded handoff:** only a successful command plus a conformant post-command audit creates a receipt. Manual passing handoffs are rejected.
+- **Concurrent local state:** writers use an exclusive local lock, reload under lock, and atomically replace `.runway/state.json`.
+- **Codex-native workflow:** the bundled skill makes declare, reserve, verify, audit, and handoff an explicit agent protocol.
+- **Portable demo:** checked-in static assets, fixture source, and tests run without credentials or a hosted backend.
+
+## Run locally
+
+Only Node.js 20.19+ is required for the no-rebuild demo:
 
 ~~~powershell
 git clone https://github.com/vivekyarra/runway.git
@@ -22,53 +112,9 @@ cd runway\web
 node bin\demo-server.mjs
 ~~~
 
-Open [http://127.0.0.1:4174](http://127.0.0.1:4174), then follow the **45-second judge demo**:
+Open [http://127.0.0.1:4174](http://127.0.0.1:4174). The complete sample repository is in `web/fixtures/parcel-ops`; no sample download or API key is needed.
 
-The repository includes the complete sample project at `web/fixtures/parcel-ops`: inspectable JS/JSX source, focused tests, and the concrete Pricing/Tax/Checkout scenario used by both the dashboard and CLI examples. It needs no API key, external service, or separate sample-data download.
-
-1. See Tax held before editing because it duplicates Pricing at `src/quote.js`, `quoteTotal`, and the `pricing` contract.
-2. Choose **Reroute held lane**. Runway removes the owned overlap and rechecks the declaration.
-3. Choose **Reserve clear lane**. The isolated tax-adjustment lane becomes airborne.
-4. Choose **Audit changed files**. The labeled fixture diff must stay inside the declared file boundary.
-5. Choose **Create verified handoff**. The receipt preserves declared scope, diff conformance, and observed test evidence.
-
-The dashboard also shows a non-blocking repository dependency warning: Checkout imports Pricing's file even though their declarations do not directly overlap. That is the difference between a transparent review signal and a hard hold.
-
-![Runway proves the changed files stayed inside the declared lane before handoff](docs/runway-diff-proof.png)
-
-## The problem
-
-Git worktrees isolate *where* agents edit. Merge tools react *after* code diverges. File claims help once a path is touched. None answers the earlier and cheaper question:
-
-> Before two agents start, do they intend to change the same behavior?
-
-Files alone are not enough. Two agents can touch different paths while changing the same contract; two declarations can also be file-disjoint but connected by a real import. Runway makes that risk visible while rerouting is still cheap.
-
-## What works today
-
-- **Pre-edit clearance:** deterministic scoring over exact files, case-sensitive exported symbols, behavioral contracts, module proximity, and scanned one-hop relative imports.
-- **Repository grounding:** a persisted JS/TS scan reports which declared files and symbols exist and names anything unknown.
-- **Explainable decisions:** every hold or caution carries the file, symbol, contract, or dependency edge that caused it.
-- **Actual-diff conformance:** the CLI reads staged, unstaged, and untracked Git paths, names undeclared changed files, and requires a current passing audit before handoff.
-- **Safe lane lifecycle:** declare, inspect, reserve, reroute, audit, and create an evidence-backed handoff; invalid transitions and stale audits are rejected.
-- **Concurrent local state:** CLI writers use an exclusive local lock, reload under lock, then atomically replace `.runway/state.json`.
-- **Codex-native workflow:** the bundled skill instructs an agent to declare before editing, honor holds, verify real work, and hand off.
-- **Portable product demo:** checked-in static assets, fixture source, and tests run without credentials or a network service.
-- **State bridge:** export the dashboard scenario or import a real `.runway/state.json` into the browser for inspection.
-
-## How clearance works
-
-| Signal | Example | Decision weight |
-|---|---|---|
-| Exact declared file | both lanes name `src/quote.js` | blocking evidence |
-| Exact exported symbol | both lanes name `quoteTotal` | blocking evidence |
-| Behavioral contract | both lanes name `pricing` | blocking evidence |
-| Same module area | two files under `src/billing/` | non-blocking caution |
-| Scanned relative import | `CheckoutForm.jsx -> quote.js` | non-blocking repository caution |
-
-An established airborne owner is protected. A later lane with critical or high direct overlap is held. Low-proximity and dependency signals ask for review without pretending that an import proves incompatible intent.
-
-## Dashboard development path
+For dashboard development:
 
 ~~~powershell
 cd web
@@ -76,58 +122,28 @@ npm ci
 npm run dev
 ~~~
 
-The dashboard is browser-local and never runs shell commands. The bundled scenario includes test evidence recorded from the fixture; use the CLI to create evidence from commands you run yourself. To inspect a CLI-created state, choose **Import state** and select the target repository's `.runway/state.json`.
-
-After changing dashboard source, rebuild the checked-in judge demo with:
-
-~~~powershell
-npm run package:demo
-~~~
-
 ## Real CLI workflow
 
-All product state stays under the target repository's `.runway` folder.
+Run this in a dedicated clean worktree. `lane verify` executes the exact command string in the target repository, so never pass untrusted command text.
 
 ~~~powershell
-# From this repository's web folder, initialize the bundled scenario.
-node bin\runway.mjs init --root fixtures\parcel-ops --demo
+# From web, prepare the bundled scenario as its own disposable Git repository.
+$proofRoot = Join-Path ([IO.Path]::GetTempPath()) ("runway-proof-" + (Get-Date -Format 'yyyyMMdd-HHmmss'))
+Copy-Item -Recurse -Force (Resolve-Path 'fixtures\parcel-ops') $proofRoot
+git -C $proofRoot init
+git -C $proofRoot config user.email 'runway@example.test'
+git -C $proofRoot config user.name 'Runway Demo'
+git -C $proofRoot add .
+git -C $proofRoot commit -m 'fixture baseline'
 
-# Persist the real JS/TS inventory. The JSON response says persisted: true.
-node bin\runway.mjs scan --root fixtures\parcel-ops --write
-node bin\runway.mjs status --root fixtures\parcel-ops
-
-# Tax begins held. Narrow it away from Pricing and request clearance again.
-node bin\runway.mjs lane reroute --root fixtures\parcel-ops --id tax-adjustment --files "src/tax/adjustments.js" --symbols "calculateTaxAdjustment" --contracts "tax-adjustment"
-node bin\runway.mjs lane reserve --root fixtures\parcel-ops --id tax-adjustment
-
-# Run the evidence command yourself before recording its result.
-node --test fixtures\parcel-ops\tests\tax.test.mjs
-node bin\runway.mjs lane audit --root fixtures\parcel-ops --id tax-adjustment
-node bin\runway.mjs lane handoff --root fixtures\parcel-ops --id tax-adjustment --evidence "node --test fixtures/parcel-ops/tests/tax.test.mjs" --result "passing" --note "Tax adjustment path verified after reroute."
+node bin\runway.mjs init --root $proofRoot
+node bin\runway.mjs scan --root $proofRoot --write
+node bin\runway.mjs lane create --root $proofRoot --id tax-adjustment --agent "Sol / Rules" --task "Apply regional tax adjustment" --files "src/tax/adjustments.js" --symbols "calculateTaxAdjustment" --contracts "tax-adjustment"
+node bin\runway.mjs lane reserve --root $proofRoot --id tax-adjustment
+node bin\runway.mjs lane verify --root $proofRoot --id tax-adjustment --command "node --test tests/tax.test.mjs" --note "Focused tax path verified after reroute."
 ~~~
 
-A lane must declare at least one file, symbol, or contract, and a handoff additionally requires a declared file boundary. Run the audit in a dedicated clean worktree: it reads the current staged, unstaged, and untracked paths and ignores `.runway`. Runway records the verification supplied by the operator; it does not falsely claim to have run that command.
-
-### Local write protocol
-
-Mutating commands cooperate through `.runway/state.lock`. A writer obtains an exclusive local lock, reloads state while holding it, writes a temporary file in the same directory, and atomically replaces `state.json`. Tests cover concurrent lane creation, duplicate IDs, and dead stale-lock recovery.
-
-This is a local-filesystem coordination protocol, not a security boundary or distributed lock. Do not treat it as an SMB/NFS guarantee or protection from a process that ignores the protocol.
-
-## Install the Codex skill
-
-~~~powershell
-cd web
-$runwayCheckout = (Resolve-Path .).Path
-$skillsRoot = Join-Path ([Environment]::GetFolderPath('UserProfile')) '.codex\skills'
-New-Item -ItemType Directory -Force -Path $skillsRoot | Out-Null
-Copy-Item -Recurse -Force (Join-Path $runwayCheckout 'skills\runway') (Join-Path $skillsRoot 'runway')
-
-# Set this in each coordinating Codex session.
-$env:RUNWAY_CLI = Join-Path $runwayCheckout 'bin\runway.mjs'
-~~~
-
-Start a new Codex session after installation so the skill is discovered. The skill calls the local CLI and needs no runtime API key.
+On success, the JSON receipt includes `source: runway-executed`, the command result and exit code, duration, stdout/stderr SHA-256 hashes, and the post-command Git audit. A failed command, timeout, unexpected file, or lane mutation during execution prevents handoff.
 
 ## Verify the product
 
@@ -140,51 +156,39 @@ npm run build
 npm run package:demo
 ~~~
 
-The current suite has 27 tests covering the fixture, collision model, repository grounding, dependency evidence, actual Git diff conformance, file-boundary, stale-audit and handoff guards, concurrent writers, and stale-lock recovery.
+The suite has 30 tests covering replay extraction and tamper detection, the collision model, repository grounding, real Git diff conformance, executed proof success/failure/drift, lifecycle guards, concurrent writers, and stale-lock recovery.
 
 ## Architecture
 
-![Runway code-scope contract architecture](docs/runway-architecture.svg)
+![Runway architecture](docs/runway-architecture.svg)
 
 ~~~text
-Codex agent -> runway skill -> dependency-free Node CLI -> .runway/state.json
-                                  |                         |
-                                  |                         +-> atomic local state + receipts
-                                  +-> JS/TS scan ---------->+-> grounding + import edges
-                                  +-> declared scope ------>+-> clear / caution / hold
-                                  +-> actual Git paths ---->+-> conformant / scope drift
+Historical Git ranges -> replay extractor -> shared collision core -> replay artifact
 
-React dashboard -> same collision core -> guided demo + JSON import/export
-Bundled fixture  -> real source/tests  -> reproducible evidence
+Codex agent -> Runway skill -> dependency-free CLI -> .runway/state.json
+                                  |                    |
+                                  |                    +-> atomic state + receipts
+                                  +-> JS/TS scan ----->+-> grounding + import edges
+                                  +-> declarations --->+-> clear / caution / hold
+                                  +-> trusted command -> test result + output hashes
+                                  +-> fresh Git audit -> conformant / scope drift
+
+React dashboard -> same collision core -> guided fixture + JSON import/export
 ~~~
-
-The collision core is shared by the CLI and React dashboard. The static demo is generated from the same source, so the presentation is not a disconnected mockup.
-
-## Why Runway is different
-
-General agent control planes route work. Runway controls one narrower failure boundary: **planned code scope versus actual changed code**. Its unit is a two-sided code-scope contract:
-
-- declared before implementation and checked against the Git changed-file set before handoff;
-- richer than a file lock because it names symbols and behavioral contracts;
-- more honest than opaque “AI confidence” because the evidence and scoring are inspectable;
-- complementary to Git, worktrees, tests, and review rather than a replacement for them.
 
 ## Honest boundaries
 
-Runway is a cooperative local advisory layer. The diff audit catches undeclared changed paths, but it does not prevent writes, stop a process from ignoring the protocol, or prove that edits inside an allowed file match the declared symbol or contract. The scanner recognizes common JS/TS exports, imports, and routes; it is not a compiler or whole-program analyzer. A caution does not prove a collision, and clearance does not guarantee a conflict-free merge. The dashboard does not monitor agents or execute Git or test commands; its guided flow uses a clearly labeled fixture diff snapshot.
+Runway is a cooperative, local advisory layer. It does not prevent writes, stop an agent from declaring narrowly, or prove that edits inside an allowed file match the named symbol or contract. The scanner and replay symbol extraction recognize common JS/TS patterns; neither is compiler-grade or whole-program analysis. Import proximity is only a caution. Clearance does not guarantee a conflict-free merge.
 
-These boundaries are deliberate: a judge can reproduce every product decision without trusting a hidden model call.
+The replay is counterfactual, not evidence Runway participated in the historical event. Its SHA-256 fingerprint detects changes relative to the published digest; it is not a digital signature or identity proof. The local lock is not a distributed-filesystem guarantee. The browser demo uses labeled fixture records and does not execute Git or tests.
 
-## Codex and GPT-5.6 collaboration
+Those limits are deliberate. Every material decision remains reproducible without trusting a hidden model call.
 
-Codex with GPT-5.6-terra accelerated the project from product selection through adversarial verification:
+## Built with Codex and GPT-5.6
 
-- **Product:** narrowed the product from general orchestration to one testable boundary: declared scope versus actual changed files.
-- **Engineering:** implemented the shared collision core, CLI, repository scan, Git diff audit, atomic local write protocol, transition guards, and JSON state bridge.
-- **Design:** shaped the collision -> reroute -> reserve -> diff audit -> handoff story into a guided judge flow.
-- **QA:** found and fixed Windows path normalization, symbol-case, ownership-order, unscoped-lane, concurrent-write, stale-lock, and claim-accuracy defects; added regression tests.
+Codex with GPT-5.6-terra helped narrow the problem, implement the shared core, replay pipeline, CLI, dashboard, skill, concurrency protocol, and adversarial tests. It is the engineering collaborator, not a decorative runtime chat wrapper. The session of record is `019f6e9b-8401-78c0-a71b-56273ec52b3f`.
 
-The core-build session of record is `019f6e9b-8401-78c0-a71b-56273ec52b3f`, authenticated as `gpt-5.6-terra`. [03_build_log.md](03_build_log.md) records decisions, validation evidence, and remaining risks. [SUBMISSION.md](SUBMISSION.md) contains final Devpost copy, the exact video script, and the account-bound checklist.
+[03_build_log.md](03_build_log.md) records the evidence trail. [SUBMISSION.md](SUBMISSION.md) contains the exact Devpost copy, video script, and remaining account-bound checklist.
 
 ## License
 

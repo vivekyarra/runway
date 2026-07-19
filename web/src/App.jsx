@@ -17,6 +17,7 @@ import {
   scopeGrounding,
 } from './core/runway.js'
 import { createDemoState } from './demo/demoState.js'
+import { publicReplay } from './demo/publicReplay.js'
 
 const statusCopy = {
   queued: 'Queued',
@@ -77,6 +78,7 @@ function App() {
   const [runway, setRunway] = useState(createDemoState)
   const [selectedId, setSelectedId] = useState('tax-adjustment')
   const [composerOpen, setComposerOpen] = useState(false)
+  const [replayExpanded, setReplayExpanded] = useState(false)
   const [toast, setToast] = useState('')
   const importInputRef = useRef(null)
 
@@ -159,7 +161,7 @@ function App() {
     try {
       assertHandoffAllowed(targetLane, conflicts)
       if (!targetLane.evidence?.length) {
-        notify('Attach actual operator-provided evidence with the CLI before creating a handoff.')
+        notify('Run lane verify with the CLI before creating a real handoff. This browser path displays a bundled fixture record.')
         return
       }
       const receipt = buildHandoff(targetLane, conflicts)
@@ -168,7 +170,7 @@ function App() {
         (lane) => ({ ...lane, status: 'handoff', handoff: receipt }),
         { type: 'evidence', lane: targetLane.id, text: `${targetLane.agent} created a structured handoff.` },
       )
-      notify('Handoff receipt captured with declared scope, recorded evidence, and remaining risk.')
+      notify('Fixture receipt captured with declared scope, labeled fixture evidence, and remaining risk.')
     } catch (error) {
       notify(error.message)
     }
@@ -278,7 +280,7 @@ function App() {
       : demoStep === 3
         ? 'Audit changed files'
         : demoStep === 4
-          ? 'Create verified handoff'
+          ? 'Create fixture receipt'
           : 'Replay interception'
 
   const addLane = (event) => {
@@ -342,7 +344,8 @@ function App() {
           </div>
 
           <nav className="sidebar-nav" aria-label="Runway navigation">
-            <button className="nav-link nav-link--active" aria-controls="airspace" onClick={() => navigateTo('airspace')}><Icon name="radar" size={17} />Airspace <span>{metrics.lanes}</span></button>
+            <button className="nav-link nav-link--active" aria-controls="collision-replay" onClick={() => navigateTo('collision-replay')}><Icon name="branch" size={17} />Collision replay <span>3</span></button>
+            <button className="nav-link" aria-controls="airspace" onClick={() => navigateTo('airspace')}><Icon name="radar" size={17} />Airspace <span>{metrics.lanes}</span></button>
             <button className="nav-link" aria-controls="collision-radar" onClick={() => navigateTo('collision-radar')}><Icon name="shield" size={17} />Collision radar <span>{metrics.conflicts}</span></button>
             <button className="nav-link" aria-controls="evidence-ledger" onClick={() => navigateTo('evidence-ledger')}><Icon name="check" size={17} />Evidence ledger <span>{metrics.evidenceCount}</span></button>
           </nav>
@@ -351,7 +354,7 @@ function App() {
             <div className="protocol-icon"><Icon name="bolt" size={17} /></div>
             <div>
               <strong>Agent protocol</strong>
-              <p>Declare. Reserve. Prove the diff. Hand off.</p>
+              <p>Declare. Reserve. Run proof. Audit. Hand off.</p>
             </div>
           </div>
 
@@ -363,14 +366,58 @@ function App() {
         <main className="main-content">
           <section className="hero-panel">
             <div>
-              <div className="eyebrow eyebrow--lime">CODE SCOPE CONTRACT / {runway.repo.name.toUpperCase()}</div>
-              <h1>Declare before code. Prove the diff after.</h1>
-              <p>Runway stops parallel agents from duplicating the same change before they start, then checks that each Git diff stayed inside its declared lane before handoff.</p>
+              <div className="eyebrow eyebrow--lime">REAL COLLISION / REPLAYED FROM PUBLIC GIT</div>
+              <h1>One issue. Three implementations. Two duplicate-work closures.</h1>
+              <p>Runway reconstructs exact Git ranges to prove where work overlapped, then applies the same code-scope contract before new agents start: declare before code, execute proof, and audit the diff after.</p>
             </div>
             <div className="hero-badge">
-              <span className="hero-badge__ring" style={{ '--clearance': `${metrics.confidence}%` }}><span /></span>
-              <div><strong>{metrics.confidence}%</strong><span>clearance rate</span></div>
+              <span className="hero-badge__ring" style={{ '--clearance': '100%' }}><span /></span>
+              <div><strong>{publicReplay.evidence.sharedPaths}+1</strong><span>paths + function</span></div>
             </div>
+          </section>
+
+          <section id="collision-replay" className="replay-proof" aria-label="Provenance-backed public collision replay">
+            <div className="replay-proof__header">
+              <div>
+                <span className="eyebrow eyebrow--lime">COLLISION REPLAY / COUNTERFACTUAL RECEIPT</span>
+                <strong>{publicReplay.title}</strong>
+                <p>{publicReplay.summary}</p>
+              </div>
+              <div className="replay-verdict">
+                <span>RUNWAY VERDICT</span>
+                <strong>HOLD LATER LANE</strong>
+                <small>critical / fingerprint {publicReplay.evidence.receipt.slice(0, 10)}</small>
+              </div>
+            </div>
+
+            <div className="replay-timeline">
+              {publicReplay.records.map((record, index) => (
+                <a key={record.label} href={record.url} target="_blank" rel="noreferrer" className={`replay-event ${index > 0 ? 'replay-event--closed' : ''}`}>
+                  <span>{record.opened}</span>
+                  <strong>{record.label}</strong>
+                  <small>{record.outcome}</small>
+                  <em>{record.state}</em>
+                </a>
+              ))}
+            </div>
+
+            <div className="replay-evidence">
+              <div><span>SHARED PATHS</span><strong>{publicReplay.evidence.sharedPaths}</strong><code>{publicReplay.evidence.primaryPath}</code></div>
+              <div><span>SAME CHANGED FUNCTION</span><strong>1</strong><code>{publicReplay.evidence.sharedSymbol}</code></div>
+              <div><span>PUBLIC SOURCE</span><strong>{publicReplay.source.license}</strong><a href={publicReplay.source.issueUrl} target="_blank" rel="noreferrer">{publicReplay.source.repository} {publicReplay.source.issue}</a></div>
+            </div>
+
+            <div className="replay-proof__footer">
+              <p>{publicReplay.disclosure}</p>
+              <button className="button button--ghost" aria-expanded={replayExpanded} aria-controls="replay-exact-refs" onClick={() => setReplayExpanded((open) => !open)}>{replayExpanded ? 'Hide exact refs' : 'Inspect exact refs'}<Icon name="arrow" size={15} /></button>
+            </div>
+            {replayExpanded && (
+              <div id="replay-exact-refs" className="replay-refs">
+                {publicReplay.evidence.ranges.map((range) => <code key={range.label}>{range.label} · {range.base} → {range.head}</code>)}
+                <code>sha256 · {publicReplay.evidence.receipt}</code>
+                <small>{publicReplay.attribution}</small>
+              </div>
+            )}
           </section>
 
           <section className={`intercept-strip ${blockingConflict ? 'intercept-strip--hold' : primaryConflict ? 'intercept-strip--caution' : 'intercept-strip--clear'}`} aria-label="Current collision interception">
@@ -388,7 +435,7 @@ function App() {
             <div className="guided-demo__copy">
               <span className="eyebrow eyebrow--lime">45-SECOND JUDGE PATH</span>
               <strong>{demoStep === 1 ? 'Runway caught three matching declarations.' : demoStep === 2 ? 'The direct overlap is gone. Recheck passed.' : demoStep === 3 ? 'The lane is isolated and airborne.' : demoStep === 4 ? 'The changed files stayed inside the lane.' : 'Collision avoided. Scope and evidence preserved.'}</strong>
-              <p>{demoStep === 1 ? 'Pricing already owns the shared behavior, so Sol cannot start yet.' : demoStep === 2 ? 'Sol now owns only the tax module and tax-adjustment contract.' : demoStep === 3 ? 'Compare the recorded fixture diff with the file boundary Sol declared.' : demoStep === 4 ? 'Now turn diff conformance and the focused test into one handoff receipt.' : 'The two agents can continue independently with an auditable scope contract.'}</p>
+              <p>{demoStep === 1 ? 'Pricing already owns the shared behavior, so Sol cannot start yet.' : demoStep === 2 ? 'Sol now owns only the tax module and tax-adjustment contract.' : demoStep === 3 ? 'Compare the recorded fixture diff with the file boundary Sol declared.' : demoStep === 4 ? 'The browser illustrates the receipt; the CLI executes the command and re-audits Git itself.' : 'The two agents can continue independently with an auditable scope contract.'}</p>
             </div>
             <div className="guided-demo__progress" aria-label={`Demo step ${demoStep} of 5`}>
               {[1, 2, 3, 4, 5].map((step) => <span key={step} className={step <= demoStep ? 'is-complete' : ''}>{step}</span>)}
@@ -515,8 +562,8 @@ function App() {
                   ) : !selectedAudit.passed ? (
                     <span className="action-note">Scope drift found. Reroute or revert the unexpected files.</span>
                   ) : selectedHasEvidence ? (
-                    <button className="button button--ghost" onClick={() => createHandoff()}><Icon name="check" size={16} />Create handoff</button>
-                  ) : <span className="action-note">Attach operator-provided test evidence before handoff.</span>
+                    <button className="button button--ghost" onClick={() => createHandoff()}><Icon name="check" size={16} />Create fixture receipt</button>
+                  ) : <span className="action-note">Run the CLI verification command before handoff.</span>
                 )}
               </div>
             </article>
@@ -544,8 +591,8 @@ function App() {
                 {selectedAudit && <small>{selectedAudit.source}</small>}
               </div>
               <div className="evidence-list">
-                <span className="evidence-title">ATTACHED EVIDENCE</span>
-                {selectedLane.evidence?.length ? selectedLane.evidence.map((item, index) => <div className="evidence-row" key={`${item.command}-${index}`}><span className="evidence-check"><Icon name="check" size={13} /></span><code>{item.command}</code><span>{item.result}</span><time>{item.at}</time></div>) : <div className="no-evidence">Runway records operator-provided evidence; it does not execute commands in the browser.</div>}
+                <span className="evidence-title">EVIDENCE RECORDS</span>
+                {selectedLane.evidence?.length ? selectedLane.evidence.map((item, index) => <div className="evidence-row" title={item.source} key={`${item.command}-${index}`}><span className="evidence-check"><Icon name="check" size={13} /></span><code>{item.command}</code><span>{item.result}</span><time>{item.at}</time></div>) : <div className="no-evidence">The browser does not execute commands. Use CLI lane verify to run proof and create a real receipt.</div>}
               </div>
             </article>
           </section>

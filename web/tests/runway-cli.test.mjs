@@ -266,8 +266,10 @@ test('CLI reconstructs a provenance-backed collision from two Git ranges', () =>
       root,
       'replay', '--root', root,
       '--left', `${base}..${left}`, '--left-label', 'PR alpha',
+      '--left-url', 'https://example.test/repo/pull/1', '--left-created-at', '2026-01-01T00:00:00Z',
       '--right', `${base}..${right}`, '--right-label', 'PR beta',
-      '--source-url', 'https://example.test/repo',
+      '--right-url', 'https://example.test/repo/pull/2', '--right-created-at', '2026-01-02T00:00:00Z',
+      '--source-url', 'https://example.test/repo', '--source-license', 'MIT',
       '--out', output,
     )
 
@@ -278,9 +280,21 @@ test('CLI reconstructs a provenance-backed collision from two Git ranges', () =>
     assert.deepEqual(replay.evidence.find((item) => item.kind === 'shared file').values, ['src/quote.js'])
     assert.deepEqual(replay.evidence.find((item) => item.kind === 'shared symbol').values, ['quoteTotal'])
     assert.equal(replay.lanes[0].baseSha, base)
+    assert.equal(replay.lanes[0].url, 'https://example.test/repo/pull/1')
+    assert.equal(replay.lanes[1].createdAt, '2026-01-02T00:00:00Z')
     assert.equal(replay.lanes[1].headSha, right)
+    assert.equal(replay.source.license, 'MIT')
     assert.match(replay.artifactSha256, /^[a-f0-9]{64}$/)
     assert.equal(existsSync(output), true)
+    const receipt = run(root, 'replay', 'verify', '--file', output)
+    assert.equal(receipt.ok, true)
+
+    const tampered = JSON.parse(readFileSync(output, 'utf8'))
+    tampered.verdict.state = 'clear'
+    writeFileSync(output, `${JSON.stringify(tampered, null, 2)}\n`)
+    const rejected = runFailure(root, 'replay', 'verify', '--file', output)
+    assert.equal(rejected.output.ok, false)
+    assert.notEqual(rejected.output.expectedSha256, rejected.output.computedSha256)
   } finally {
     removeRoot(root)
   }

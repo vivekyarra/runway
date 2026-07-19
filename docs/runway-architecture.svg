@@ -1,6 +1,6 @@
 <svg xmlns="http://www.w3.org/2000/svg" width="1600" height="900" viewBox="0 0 1600 900" role="img" aria-labelledby="title desc">
   <title id="title">Runway code-scope contract architecture</title>
-  <desc id="desc">Two Codex agents declare intended files, symbols, and behavioral contracts before coding. Runway returns explainable clearance, then audits actual Git changed paths before accepting a handoff.</desc>
+  <desc id="desc">Runway reconstructs historical overlap from exact Git ranges, then gives coding agents a pre-edit scope contract and executes verification before a post-command Git audit.</desc>
   <defs>
     <linearGradient id="background" x1="0" y1="0" x2="1" y2="1">
       <stop offset="0" stop-color="#071112"/>
@@ -33,8 +33,8 @@
   <circle cx="120" cy="780" r="310" fill="#53e6c7" opacity="0.025"/>
 
   <text x="90" y="78" class="label" fill="#d7ff5c">RUNWAY / CODE SCOPE CONTRACT</text>
-  <text x="90" y="145" class="title">Declare before code. Prove the diff after.</text>
-  <text x="90" y="187" class="subtitle">One inspectable boundary: planned code scope versus actual changed code.</text>
+  <text x="90" y="145" class="title">Replay the failure. Stop the next collision.</text>
+  <text x="90" y="187" class="subtitle">Public Git history -&gt; pre-edit contract -&gt; executed proof + post-command audit.</text>
 
   <rect x="90" y="250" width="355" height="205" rx="20" fill="url(#panel)" stroke="#38504d"/>
   <circle cx="125" cy="290" r="7" fill="#53e6c7" filter="url(#glow)"/>
@@ -60,19 +60,19 @@
   <text x="628" y="346" class="label" fill="#d7ff5c">DETERMINISTIC CORE</text>
   <text x="628" y="375" class="panel-title">Runway scope contract engine</text>
 
-  <text x="624" y="422" class="body">1. Normalize planned files, symbols, contracts</text>
-  <text x="624" y="458" class="body">2. Ground declarations in the JS/TS scan</text>
+  <text x="624" y="422" class="body">1. Replay exact Git ranges as candidate scopes</text>
+  <text x="624" y="458" class="body">2. Ground live declarations in the JS/TS scan</text>
   <text x="624" y="494" class="body">3. Return exact hold, caution, or clearance</text>
-  <text x="624" y="530" class="body">4. Read actual Git paths after implementation</text>
-  <text x="624" y="566" class="body">5. Reject undeclared paths before handoff</text>
+  <text x="624" y="530" class="body">4. Execute the trusted verification command</text>
+  <text x="624" y="566" class="body">5. Re-read Git paths; reject drift</text>
 
   <rect x="624" y="585" width="330" height="42" rx="10" fill="#091616" stroke="#36514c"/>
   <text x="644" y="612" class="mono">evidence, never opaque confidence</text>
 
   <rect x="575" y="700" width="430" height="112" rx="20" fill="url(#panel)" stroke="#36514c"/>
-  <text x="604" y="739" class="label" fill="#82d6ff">REPOSITORY + GIT EVIDENCE</text>
-  <text x="604" y="774" class="body">Before: files + exports + one-hop imports</text>
-  <text x="604" y="801" class="body">After: staged + unstaged + untracked paths</text>
+  <text x="604" y="739" class="label" fill="#82d6ff">REPLAY + LIVE EVIDENCE</text>
+  <text x="604" y="774" class="body">Replay: SHAs + changed paths/functions</text>
+  <text x="604" y="801" class="body">Live: declarations + command + fresh Git audit</text>
   <path d="M790 700 V656" stroke="#79e6ce" stroke-width="3" marker-end="url(#arrow)"/>
 
   <path d="M1005 470 H1105" stroke="#79e6ce" stroke-width="3" marker-end="url(#arrow)"/>
@@ -97,8 +97,8 @@
 
   <rect x="1125" y="720" width="385" height="92" rx="20" fill="#d7ff5c" opacity="0.09" stroke="#d7ff5c" stroke-opacity="0.35"/>
   <text x="1160" y="756" class="label" fill="#d7ff5c">HANDOFF GATE</text>
-  <text x="1160" y="786" class="body">scope + conformant diff + test evidence</text>
+  <text x="1160" y="786" class="body">executed test + conformant diff receipt</text>
   <path d="M1317 690 V714" stroke="#79e6ce" stroke-width="3" marker-end="url(#arrow)"/>
 
-  <text x="90" y="853" class="small">Advisory, not write enforcement · local-first · dependency-free CLI · reusable Codex skill · no runtime model call</text>
+  <text x="90" y="853" class="small">Counterfactual replay | advisory, not write enforcement | local-first | dependency-free CLI | reusable Codex skill</text>
 </svg>

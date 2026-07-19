@@ -293,7 +293,7 @@ function resolveCommit(root, reference) {
   }
 }
 
-function replayChange(root, rangeOption, label, task) {
+function replayChange(root, rangeOption, label, task, metadata = {}) {
   const parsed = parseGitRange(rangeOption.value, rangeOption.name)
   const baseSha = resolveCommit(root, parsed.baseRef)
   const headSha = resolveCommit(root, parsed.headRef)
@@ -308,6 +308,8 @@ function replayChange(root, rangeOption, label, task) {
   return {
     label,
     task,
+    url: metadata.url || null,
+    createdAt: metadata.createdAt || null,
     range: parsed.range,
     baseRef: parsed.baseRef,
     headRef: parsed.headRef,
@@ -320,6 +322,12 @@ function replayChange(root, rangeOption, label, task) {
 
 function sha256(value) {
   return createHash('sha256').update(value).digest('hex')
+}
+
+function replayArtifactHash(replay) {
+  const payload = { ...replay }
+  delete payload.artifactSha256
+  return sha256(JSON.stringify(payload))
 }
 
 function parseCommandTimeout(value) {
@@ -415,14 +423,18 @@ Usage:
   node bin/runway.mjs init --root <repo> [--demo]
   node bin/runway.mjs scan --root <repo> [--write]
   node bin/runway.mjs status --root <repo>
-  node bin/runway.mjs replay --root <repo> --left <base>..<head> --right <base>..<head> [--left-label <text>] [--right-label <text>] [--source-url <url>] [--out <file>]
+  node bin/runway.mjs replay --root <repo> --left <base>..<head> --right <base>..<head>
+    [--left-label <text>] [--left-task <text>] [--left-url <url>] [--left-created-at <iso>]
+    [--right-label <text>] [--right-task <text>] [--right-url <url>] [--right-created-at <iso>]
+    [--source-url <url>] [--source-license <id>] [--out <file>]
+  node bin/runway.mjs replay verify --file <replay.json>
   node bin/runway.mjs lane create --root <repo> --id <lane> --agent <owner> --task <text> [--files a,b] [--symbols a,b] [--contracts a,b]
   node bin/runway.mjs lane reserve --root <repo> --id <lane>
   node bin/runway.mjs lane reroute --root <repo> --id <lane> [--files a,b] [--symbols a,b] [--contracts a,b]
   node bin/runway.mjs lane audit --root <repo> --id <lane>
   node bin/runway.mjs lane verify --root <repo> --id <lane> --command <command> [--timeout-ms 120000] [--note <text>]
 
-  Runway is intentionally advisory: clearance compares declared lane scope, and audit checks the current Git changed-file set before handoff. It does not prevent writes, infer intent, or guarantee a conflict-free merge.
+  Runway is intentionally advisory: replay reconstructs historical overlap, clearance compares declared scope, and lane verify executes a trusted operator command before auditing Git. Runway does not prevent writes, infer intent, or guarantee a conflict-free merge.
 `)
 }
 
@@ -488,7 +500,31 @@ async function commandLaneVerify(options) {
   if (!response.ok) process.exitCode = 1
 }
 
-function commandReplay(options) {
+function commandReplayVerify(options) {
+  const file = path.resolve(requireOption(options, 'file'))
+  let replay
+  try {
+    replay = JSON.parse(readFileSync(file, 'utf8'))
+  } catch {
+    throw new Error(`Cannot read replay artifact: ${file}`)
+  }
+  if (replay.kind !== 'runway-collision-replay' || !replay.artifactSha256) {
+    throw new Error('The file is not a fingerprinted Runway collision replay.')
+  }
+  const computedSha256 = replayArtifactHash(replay)
+  const response = {
+    ok: computedSha256 === replay.artifactSha256,
+    file,
+    expectedSha256: replay.artifactSha256,
+    computedSha256,
+  }
+  print(response)
+  if (!response.ok) process.exitCode = 1
+}
+
+function commandReplay(action, options) {
+  if (action === 'verify') return commandReplayVerify(options)
+  if (action) throw new Error(`Unknown replay action: ${action}`)
   const root = resolveRoot(options)
   try {
     gitPaths(root, ['rev-parse', '--is-inside-work-tree'])
@@ -501,12 +537,20 @@ function commandReplay(options) {
     { name: 'left', value: options.left },
     options['left-label'] && options['left-label'] !== true ? options['left-label'] : 'Earlier lane',
     options['left-task'] && options['left-task'] !== true ? options['left-task'] : undefined,
+    {
+      url: options['left-url'] && options['left-url'] !== true ? options['left-url'] : null,
+      createdAt: options['left-created-at'] && options['left-created-at'] !== true ? options['left-created-at'] : null,
+    },
   )
   const right = replayChange(
     root,
     { name: 'right', value: options.right },
     options['right-label'] && options['right-label'] !== true ? options['right-label'] : 'Later lane',
     options['right-task'] && options['right-task'] !== true ? options['right-task'] : undefined,
+    {
+      url: options['right-url'] && options['right-url'] !== true ? options['right-url'] : null,
+      createdAt: options['right-created-at'] && options['right-created-at'] !== true ? options['right-created-at'] : null,
+    },
   )
   let remote = null
   try {
@@ -517,11 +561,12 @@ function commandReplay(options) {
   const replay = buildCollisionReplay({
     source: {
       repository: options['source-url'] && options['source-url'] !== true ? options['source-url'] : remote,
+      license: options['source-license'] && options['source-license'] !== true ? options['source-license'] : null,
     },
     left,
     right,
   })
-  replay.artifactSha256 = sha256(JSON.stringify(replay))
+  replay.artifactSha256 = replayArtifactHash(replay)
 
   if (options.out) {
     const output = path.resolve(requireOption(options, 'out'))
@@ -676,7 +721,7 @@ export async function main(args = process.argv.slice(2)) {
   if (command === 'init') return commandInit(options)
   if (command === 'scan') return commandScan(options)
   if (command === 'status') return commandStatus(options)
-  if (command === 'replay') return commandReplay(options)
+  if (command === 'replay') return commandReplay(action, options)
   if (command === 'lane') return commandLane(action, options)
   throw new Error(`Unknown command: ${command}`)
 }

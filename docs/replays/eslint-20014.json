@@ -1,0 +1,83 @@
+{
+  "schemaVersion": 1,
+  "kind": "runway-collision-replay",
+  "generatedAt": "2026-07-19T08:17:24.739Z",
+  "mode": "counterfactual",
+  "source": {
+    "repository": "https://github.com/eslint/eslint",
+    "license": "MIT"
+  },
+  "disclosure": "Historical Git changes are treated as the scopes that should have been declared. This proves overlap existed; it does not claim Runway was deployed for the original work.",
+  "symbolDetection": "Lightweight JavaScript/TypeScript declaration-line extraction from the diff; not compiler-grade semantic analysis.",
+  "lanes": [
+    {
+      "label": "PR #20248",
+      "task": "Fix self-referential initializer handling",
+      "url": "https://github.com/eslint/eslint/pull/20248",
+      "createdAt": "2025-10-25T17:46:34Z",
+      "range": "aeed0078ca2f73d4744cc522102178d45b5be64e..refs/runway/pr-20248",
+      "baseRef": "aeed0078ca2f73d4744cc522102178d45b5be64e",
+      "headRef": "refs/runway/pr-20248",
+      "baseSha": "aeed0078ca2f73d4744cc522102178d45b5be64e",
+      "headSha": "7c7661a9bf195172ca0dd48745f0a0bba37bbf4e",
+      "changedFiles": [
+        "docs/src/rules/no-use-before-define.md",
+        "lib/rules/no-use-before-define.js",
+        "lib/types/rules.d.ts",
+        "tests/lib/rules/no-use-before-define.js"
+      ],
+      "changedSymbols": [
+        "hasReferenceInItsInitializer",
+        "isEvaluatedDuringInitialization"
+      ]
+    },
+    {
+      "label": "PR #20487",
+      "task": "Add deferred-reference option",
+      "url": "https://github.com/eslint/eslint/pull/20487",
+      "createdAt": "2026-02-07T18:39:24Z",
+      "range": "8330d238ae6adb68bb6a1c9381e38cfedd990d94..refs/runway/pr-20487",
+      "baseRef": "8330d238ae6adb68bb6a1c9381e38cfedd990d94",
+      "headRef": "refs/runway/pr-20487",
+      "baseSha": "8330d238ae6adb68bb6a1c9381e38cfedd990d94",
+      "headSha": "479a9fd7a67b142d01994c6ef22179b3a53f04b5",
+      "changedFiles": [
+        "docs/src/rules/no-use-before-define.md",
+        "lib/rules/no-use-before-define.js",
+        "lib/types/rules.d.ts",
+        "tests/lib/rules/no-use-before-define.js"
+      ],
+      "changedSymbols": [
+        "isDirectFunctionAssignment",
+        "isEvaluatedDuringInitialization"
+      ]
+    }
+  ],
+  "verdict": {
+    "state": "would-hold",
+    "label": "Runway would hold the later lane for review",
+    "severity": "critical",
+    "score": 100,
+    "ownerLane": "PR #20248"
+  },
+  "evidence": [
+    {
+      "kind": "shared file",
+      "values": [
+        "docs/src/rules/no-use-before-define.md",
+        "lib/rules/no-use-before-define.js",
+        "lib/types/rules.d.ts",
+        "tests/lib/rules/no-use-before-define.js"
+      ],
+      "weight": "direct"
+    },
+    {
+      "kind": "shared symbol",
+      "values": [
+        "isEvaluatedDuringInitialization"
+      ],
+      "weight": "semantic"
+    }
+  ],
+  "artifactSha256": "690814f55c81bd9b3c0224f53cbe827551c82287c1e93d55c65c72c7d92e8d9e"
+}
