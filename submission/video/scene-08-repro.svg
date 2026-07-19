@@ -1,0 +1,39 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1280" height="720" viewBox="0 0 1280 720">
+  <defs>
+    <linearGradient id="bg" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#071311"/>
+      <stop offset="1" stop-color="#0b1f1b"/>
+    </linearGradient>
+    <filter id="glow"><feGaussianBlur stdDeviation="12" result="b"/><feMerge><feMergeNode in="b"/><feMergeNode in="SourceGraphic"/></feMerge></filter>
+  </defs>
+  <rect width="1280" height="720" fill="url(#bg)"/>
+  <circle cx="1120" cy="40" r="220" fill="#c9ff4a" opacity=".035"/>
+  <text x="64" y="62" fill="#c9ff4a" font-family="Consolas, monospace" font-size="13" font-weight="700" letter-spacing="4">RUNWAY / REPRODUCIBLE FROM THE PUBLIC REPOSITORY</text>
+  <text x="64" y="120" fill="#f3f7f4" font-family="Segoe UI, sans-serif" font-size="44" font-weight="750">Install twice. Verify once. Rebuild nothing.</text>
+  <text x="64" y="153" fill="#9eb0aa" font-family="Segoe UI, sans-serif" font-size="18">Codex marketplace + standalone CLI + deterministic replay + full regression suite.</text>
+
+  <rect x="64" y="194" width="1152" height="124" rx="18" fill="#0a1816" stroke="#31584e"/>
+  <text x="90" y="226" fill="#73e0c1" font-family="Consolas, monospace" font-size="12" letter-spacing="2">INSTALL THE NATIVE CODEX PLUGIN</text>
+  <text x="90" y="264" fill="#f2f7f4" font-family="Consolas, monospace" font-size="18">$ codex plugin marketplace add vivekyarra/runway --ref main</text>
+  <text x="90" y="296" fill="#f2f7f4" font-family="Consolas, monospace" font-size="18">$ codex plugin add runway@runway-marketplace</text>
+
+  <rect x="64" y="340" width="710" height="244" rx="18" fill="#0a1816" stroke="#31584e"/>
+  <text x="90" y="374" fill="#73e0c1" font-family="Consolas, monospace" font-size="12" letter-spacing="2">VERIFY THE HISTORICAL RECEIPT</text>
+  <text x="90" y="414" fill="#f2f7f4" font-family="Consolas, monospace" font-size="16">$ node bin/runway.mjs replay verify \</text>
+  <text x="112" y="441" fill="#f2f7f4" font-family="Consolas, monospace" font-size="16">--file ../docs/replays/eslint-20014.json</text>
+  <text x="90" y="488" fill="#c9ff4a" font-family="Consolas, monospace" font-size="17" font-weight="700">VERIFIED</text>
+  <text x="188" y="488" fill="#a9bbb5" font-family="Consolas, monospace" font-size="14">expected SHA-256 = computed SHA-256</text>
+  <text x="90" y="522" fill="#81948e" font-family="Consolas, monospace" font-size="13">690814f55c81bd9b...5c72c7d92e8d9e</text>
+  <text x="90" y="556" fill="#81948e" font-family="Segoe UI, sans-serif" font-size="14">Exact Git refs and overlap evidence remain independently inspectable.</text>
+
+  <rect x="798" y="340" width="418" height="244" rx="18" fill="#0f201b" stroke="#6f9950"/>
+  <text x="824" y="374" fill="#73e0c1" font-family="Consolas, monospace" font-size="12" letter-spacing="2">FRESH TEST RUN</text>
+  <text x="824" y="423" fill="#f2f7f4" font-family="Consolas, monospace" font-size="19">$ npm test</text>
+  <text x="824" y="493" fill="#c9ff4a" font-family="Segoe UI, sans-serif" font-size="64" font-weight="800" filter="url(#glow)">39 / 39</text>
+  <text x="824" y="532" fill="#e8f0ec" font-family="Segoe UI, sans-serif" font-size="18">pass 39  •  fail 0</text>
+  <text x="824" y="562" fill="#8fa29b" font-family="Segoe UI, sans-serif" font-size="14">hook denial • drift • concurrency • parity</text>
+
+  <rect x="64" y="618" width="1152" height="54" rx="14" fill="#102a23" stroke="#3a6c5d"/>
+  <circle cx="91" cy="645" r="6" fill="#73e0c1"/>
+  <text x="110" y="651" fill="#d7e6df" font-family="Segoe UI, sans-serif" font-size="16">Deterministic runtime. No API key. No hidden model call. GPT-5.6 was used through Codex to build and test.</text>
+</svg>

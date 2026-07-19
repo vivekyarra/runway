@@ -1,0 +1,13 @@
+Two coding agents can edit different files and still implement the same behavior. Git tells you after both wrote code. Runway compares planned files, exported symbols, and behavioral contracts before either starts, blocks out-of-lane Codex patches, then verifies the final diff.
+
+This is not a fake agent swarm. A public issue produced three human implementations and two duplicate-work closures. Runway reconstructs two exact Git ranges: four shared paths and the same changed function. That proves the failure shape, not agent prevalence. Official Codex guidance separately warns that parallel, write-heavy agents can conflict.
+
+Now the prevention flow. Pricing is already airborne. Tax declares the same file, exported symbol, and pricing behavior. Runway protects the owner and holds Tax before editing. I reroute Tax to its own module, then reserve it. Checkout remains only a caution because an import is evidence, not proof of conflict.
+
+The installable Codex plugin binds this session to the airborne Tax lane. Its trusted pre-tool hook denies a direct patch to undeclared quote dot jay ess before execution. The declared Tax file passes. This guards supported Codex patch tools; it is not a universal write sandbox.
+
+Other write paths still need a backstop. Runway executes the focused test itself. The test passes, but a fresh Git audit finds undeclared quote dot jay ess, so no handoff exists. Remove only that drift and verify again. Runway records the exit code, output hashes, and conformant changed files before issuing a portable receipt.
+
+The public repository is also a Codex plugin marketplace. Two commands install the skill, hook, and standalone command line tool without rebuilding. The historical replay fingerprint verifies, and thirty-nine tests cover collision logic, concurrency, real Git drift, hook denial, path traversal, and plugin parity.
+
+GPT-five-point-six ran through Codex to build and pressure-test the parser, plugin, hook, command line tool, concurrency protocol, interface, and tests. Runtime decisions stay deterministic; there is no hidden model call. Runway acts before code, during the patch, and after execution, with evidence at every boundary.

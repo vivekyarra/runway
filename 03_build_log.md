@@ -132,3 +132,20 @@
 - Added the separate agent-specific primary source instead of stretching the replay. Official Codex documentation says parallel write-heavy workflows require care because agents editing simultaneously can create conflicts and increase coordination overhead. The README, Devpost copy, first-fold UI, and narration now present an evidence ladder: observed human failure -> official agent-workflow risk -> demonstrated Runway mechanism -> unmeasured production scale.
 - Rechecked the live Official Rules. They require building with Codex and GPT-5.6, explaining that use in the video and README, and supplying the `/feedback` Codex Session ID. They do not state that the shipped runtime must make a model API call.
 - Chose not to add a decorative GPT request. The first fold and narration now disclose that GPT-5.6-terra ran through Codex to build and pressure-test the replay extractor, CLI verification gate, concurrency protocol, interface, documentation, and tests, while shipped collision decisions remain deterministic and keyless.
+
+## 2026-07-19 - native Codex scope-guard milestone
+
+- Rechecked the current official Codex skill, plugin, and hook contracts before implementation. Repository skills are discovered from `.agents/skills`; plugins can bundle skills and default `hooks/hooks.json`; `PreToolUse` can inspect and deny supported `apply_patch` calls. The official boundary that hooks are guardrails rather than complete enforcement is preserved everywhere.
+- Added a public repository marketplace and installable `runway` plugin containing a standalone dependency-free CLI, auto-discovered skill, and trusted `PreToolUse` hook. The plugin is validation-clean and requires no npm install or rebuild.
+- Bound hook decisions to one `RUNWAY_LANE` per Codex process. Outside repositories with `.runway/state.json` the hook is inert. Inside, it denies missing, unknown, non-airborne, traversal, uninspectable, multi-file drift, and undeclared patch targets before execution; a declared file on an airborne lane passes.
+- Kept the claim bounded: the hook covers supported direct Codex patch/edit/write calls. It does not guarantee shell, hosted-tool, MCP, editor, disabled-hook, or external-process enforcement. `lane verify` and the fresh Git audit remain the final backstop.
+- Added nine hook/plugin regression tests covering patch extraction, inert repositories, lane binding and lifecycle, nested Windows-style paths, traversal, exact Codex deny JSON, installable manifest structure, source/plugin parity, and standalone plugin CLI operation. The complete suite reached 39 passing tests.
+- Published implementation milestone `09aa43a` before changing the judge-facing narrative, screenshots, and video assets.
+
+## 2026-07-19 - submission video and final presentation pass
+
+- Reframed the first fold around the coordination problem and the full differentiator: planned-scope comparison before work, native Codex patch denial during work, and fresh Git audit after execution. Updated the replay boundary so the human historical evidence is never presented as agent-prevalence proof.
+- Captured three Runway-owned Devpost images plus real reroute, reserve, audit, receipt, exact-ref, installation, and regression-test states for the video. No simulated agent typing, generated incident reenactment, third-party screenshot, or unsupported runtime claim is used.
+- Generated a 2:31.8 ElevenLabs narration from the checked-in transcript using the existing account without a purchase. The final render includes burned-in English captions, a separate SRT, an upload thumbnail, exact YouTube copy, and a reproducible ffmpeg build script.
+- Verified the final MP4 at 1280x720 and 30 fps with H.264 video, 48 kHz mono AAC audio, 151.81-second duration, audible mean level of -16.9 dB and peak of -1.2 dB, and seven inspected frames spanning the complete timeline.
+- Re-ran the release gate after presentation changes: 39/39 tests, lint, production build, checked-in demo packaging, plugin validation, all three skill validators, and replay fingerprint verification passed locally.
