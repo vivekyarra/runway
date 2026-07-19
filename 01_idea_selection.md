@@ -26,7 +26,7 @@ The shorter hook is: **Replay duplicate work. Stop the next collision.**
 |---|---|---|
 | Technical implementation | Exact-ref Git replay; shared deterministic core; dependency-free CLI; Runway-executed proof; post-command Git audit; local writer lock and atomic replacement; 30 passing tests | Scanner and replay declaration extraction are pattern-based rather than compiler-grade; state protocol is local, not distributed |
 | Design | Public no-rebuild demo opens with a real replay, keeps exact refs on demand, then shows a legible hold -> reroute -> reserve -> audit -> receipt path | Browser uses labeled fixture records and does not execute Git or tests |
-| Potential impact | A documented duplicate-work incident makes the cost concrete; the live protocol redirects overlap before edits and rejects undeclared drift after tests | Requires teams and agents to adopt the protocol; no production adoption study is claimed |
+| Potential impact | Human-authored public history proves the failure shape; official Codex guidance separately identifies conflicts and coordination overhead in parallel write-heavy agent workflows; the live protocol demonstrates the intervention | No agent-collision prevalence, production telemetry, or adoption study is claimed |
 | Quality of idea | One loop connects historical collision proof, pre-edit scope clearance, executed verification, and post-command Git conformance | The replay is counterfactual and JS/TS-focused; adjacent agent-lane products still exist |
 
 ## Product correction after adversarial review
@@ -43,7 +43,7 @@ The third change narrows rather than hides the remaining weakness. The audit cat
 
 General agent control planes route agents and tasks. Runway connects a different loop: **prove duplicate implementation from source history, then install a code-specific prevention contract**. Before work, symbols and behavioral contracts make intent reviewable. After work, Runway-executed tests and fresh Git paths make the handoff checkable.
 
-The differentiator was chosen after rejecting two tempting directions. A fake multi-agent typing simulation would be theater, not evidence. Broad blast-radius prediction would require semantic-analysis claims the current engine cannot support. The selected replay uses existing product mechanics, exact public refs, and a checkable counterfactual disclosure.
+The differentiator was chosen after rejecting two tempting directions. A fake multi-agent typing simulation would be theater, not evidence. Broad blast-radius prediction would require semantic-analysis claims the current engine cannot support. The selected replay uses existing product mechanics, exact public refs, and a checkable counterfactual disclosure. Its human provenance is now explicit: it proves the failure shape, while official Codex documentation supplies the separate agent-workflow basis.
 
 The public pitch should demonstrate that boundary instead of claiming a new category or naming a competitor. The strongest sequence is:
 

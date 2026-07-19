@@ -26,6 +26,8 @@ Deadline anchor: the Jul 21, 2026, 5:00 PM PT submission deadline in `00_facts.m
 
 - Scope semantic analysis to JS/TS and label it heuristic; never claim formal correctness or universal collision detection.
 - Do not execute an agent, create a worktree, or modify a target repository unless an operator invokes that explicit CLI action. `lane verify` executes the exact command supplied by the operator; warn against untrusted command text.
+- Never present the human-authored historical replay as evidence of AI-agent prevalence. Keep observed failure, official agent-workflow guidance, demonstrated mechanism, and unmeasured production scale separate.
+- Disclose that GPT-5.6 ran through Codex to build and pressure-test Runway but does not run inside the shipped product. Keep runtime decisions deterministic; do not add a decorative model call.
 - Keep the demo fully usable without credentials. `README.md` and `03_build_log.md` remain the submission evidence trail required by `00_facts.md`.
 
 

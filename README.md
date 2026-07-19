@@ -2,7 +2,7 @@
 
 > Replay duplicate work from Git. Stop the next collision before code.
 
-One public ESLint issue produced three independent implementations. Two later pull requests were closed to avoid duplicating work. Runway reconstructs two of those implementations from their exact Git refs and finds four shared paths plus the same changed function. It then turns that eventual human discovery into a pre-edit control: coding agents declare files, symbols, and behavioral contracts before work begins.
+One public ESLint issue produced three independent human implementations. Two later pull requests were closed to avoid duplicating work. Runway reconstructs two of those implementations from exact Git refs and finds four shared paths plus the same changed function. That proves a real duplicate-implementation failure, not that AI agents collide at scale. The agent-specific case is separate: [official Codex guidance](https://learn.chatgpt.com/docs/agent-configuration/subagents) warns that parallel write-heavy agent workflows can create conflicts and coordination overhead. Runway turns that risk into a pre-edit control.
 
 Runway is an OpenAI Build Week **Developer Tools** project.
 
@@ -32,6 +32,15 @@ Parallel coding agents can independently implement the same behavior, even in di
 
 Files alone are not enough. Two lanes can name different paths while changing the same exported symbol or behavioral contract. Runway makes that intent inspectable before work and checks the actual changed-file set afterward.
 
+## Evidence ladder
+
+| Layer | Checkable evidence | What it establishes |
+|---|---|---|
+| Observed failure | Exact public human-authored Git ranges and two documented duplicate-work closures | Duplicate implementation is real and reconstructable at file/function scope |
+| Agent-specific basis | [OpenAI's Codex documentation](https://learn.chatgpt.com/docs/agent-configuration/subagents) says parallel write-heavy agents can create conflicts and coordination overhead | The same coordination boundary exists in supported parallel-agent workflows |
+| Runway mechanism | Live declared-scope hold plus Runway-executed proof and post-command Git audit | This build can intercept declared overlap and reject undeclared drift |
+| Not claimed | No production telemetry or adoption study | Agent-collision prevalence and impact at scale remain unmeasured |
+
 ## The differentiator: Collision Replay
 
 Runway can turn two historical Git ranges into a provenance-backed counterfactual:
@@ -42,7 +51,7 @@ Runway can turn two historical Git ranges into a provenance-backed counterfactua
 - emits exact overlap evidence and a SHA-256-fingerprinted JSON artifact;
 - verifies the artifact has not changed since its published fingerprint was computed.
 
-The checked-in replay uses public history from ESLint PRs [#20248](https://github.com/eslint/eslint/pull/20248) and [#20487](https://github.com/eslint/eslint/pull/20487). PR #20487 was closed to avoid duplicating the earlier work; a third implementation, [#20526](https://github.com/eslint/eslint/pull/20526), was also closed as duplicate work. Runway was not deployed there. Historical diffs stand in for the scopes that should have been declared, so the result proves the overlap existed and shows what Runway *would* have held for review.
+The checked-in replay uses public history from ESLint PRs [#20248](https://github.com/eslint/eslint/pull/20248) and [#20487](https://github.com/eslint/eslint/pull/20487). PR #20487 was closed to avoid duplicating the earlier work; a third implementation, [#20526](https://github.com/eslint/eslint/pull/20526), was also closed as duplicate work. Runway was not deployed there, and those contributors were human. Historical diffs stand in for the scopes that should have been declared, so the result proves overlap and demonstrates what Runway *would* have held—not agent prevalence or historical causality.
 
 Verify the published artifact from `web`:
 
@@ -186,7 +195,11 @@ Those limits are deliberate. Every material decision remains reproducible withou
 
 ## Built with Codex and GPT-5.6
 
-Codex with GPT-5.6-terra helped narrow the problem, implement the shared core, replay pipeline, CLI, dashboard, skill, concurrency protocol, and adversarial tests. It is the engineering collaborator, not a decorative runtime chat wrapper. The session of record is `019f6e9b-8401-78c0-a71b-56273ec52b3f`.
+**Runway does not call GPT-5.6 at runtime. That is intentional and disclosed.** Collision clearance, artifact verification, command evidence, and Git audits remain deterministic so a judge can reproduce them without a key or hidden model judgment.
+
+GPT-5.6-terra ran through Codex as the engineering environment that built and pressure-tested the product. It helped narrow the problem, implement the shared core, replay extractor, CLI verification gate, dashboard, Codex skill, local concurrency protocol, documentation, and adversarial tests. Its work is checkable in the dated commit trail and build log rather than represented by a decorative API call.
+
+The [Official Rules](https://openai.devpost.com/rules) describe the requirement as building with Codex and GPT-5.6, explaining that collaboration in the README/video, and providing the `/feedback` Codex Session ID. They do not state that the shipped runtime must call a model API. The session of record is `019f6e9b-8401-78c0-a71b-56273ec52b3f`.
 
 [03_build_log.md](03_build_log.md) records the evidence trail. [SUBMISSION.md](SUBMISSION.md) contains the exact Devpost copy, video script, and remaining account-bound checklist.
 

@@ -368,7 +368,7 @@ function App() {
             <div>
               <div className="eyebrow eyebrow--lime">REAL COLLISION / REPLAYED FROM PUBLIC GIT</div>
               <h1>One issue. Three implementations. Two duplicate-work closures.</h1>
-              <p>Runway reconstructs exact Git ranges to prove where work overlapped, then applies the same code-scope contract before new agents start: declare before code, execute proof, and audit the diff after.</p>
+              <p>The history is human, so it proves the failure mode—not agent prevalence. Official Codex guidance separately warns parallel write-heavy agents can conflict. Runway turns that risk into a pre-edit gate and verified handoff.</p>
             </div>
             <div className="hero-badge">
               <span className="hero-badge__ring" style={{ '--clearance': '100%' }}><span /></span>
@@ -405,6 +405,12 @@ function App() {
               <div><span>SHARED PATHS</span><strong>{publicReplay.evidence.sharedPaths}</strong><code>{publicReplay.evidence.primaryPath}</code></div>
               <div><span>SAME CHANGED FUNCTION</span><strong>1</strong><code>{publicReplay.evidence.sharedSymbol}</code></div>
               <div><span>PUBLIC SOURCE</span><strong>{publicReplay.source.license}</strong><a href={publicReplay.source.issueUrl} target="_blank" rel="noreferrer">{publicReplay.source.repository} {publicReplay.source.issue}</a></div>
+            </div>
+
+            <div className="proof-boundaries" aria-label="Evidence and model-use boundaries">
+              <div><span>EVIDENCE BOUNDARY</span><strong>Human incident ≠ agent-prevalence claim</strong></div>
+              <div><span>AGENT-SPECIFIC BASIS</span><a href="https://learn.chatgpt.com/docs/agent-configuration/subagents" target="_blank" rel="noreferrer">Codex docs: parallel code writers can conflict</a></div>
+              <div><span>BUILD / RUNTIME</span><strong>{publicReplay.buildMode.builtWith} / {publicReplay.buildMode.runtime}</strong></div>
             </div>
 
             <div className="replay-proof__footer">

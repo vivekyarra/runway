@@ -1,6 +1,6 @@
 {
   "name": "runway-codex-control-tower",
-  "description": "Replay duplicate coding-agent work from Git, then stop recurrence with declared scope and Runway-executed proof.",
+  "description": "Reconstruct duplicate implementation from Git, then prevent parallel coding-agent scope collisions with declared scope and Runway-executed proof.",
   "private": true,
   "version": "1.1.0",
   "engines": {

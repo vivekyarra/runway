@@ -18,13 +18,15 @@ Final copy-and-record handoff for OpenAI Build Week. Track: **Developer Tools**.
 
 **Supported platform:** The hosted demo works in modern desktop browsers. The CLI requires Node.js 20.19+ and Git; it is tested on Windows and by Linux CI.
 
-**Short description:** Parallel coding agents can independently implement the same behavior. Runway replays that failure from exact Git history, then prevents recurrence with declared code scope, CLI-executed proof, and a post-command Git audit.
+**Short description:** Official Codex guidance warns parallel write-heavy agents can conflict. Runway converts planned code scope into pre-edit holds, executes proof, and audits Git. A human-authored historical replay proves the failure shape—not agent prevalence.
 
 ## Full project description
 
 ### Inspiration
 
-This is not a synthetic-only problem. One public ESLint issue produced three independent implementations. Two later pull requests were closed to avoid duplicating work. Git eventually exposed the coordination failure, but only after contributors had already written code.
+This is not a synthetic-only failure shape. One public ESLint issue produced three independent human implementations. Two later pull requests were closed to avoid duplicating work. Git eventually exposed the coordination failure, but only after contributors had already written code. That evidence proves duplicate implementation is real and reconstructable; it does not prove AI agents collide at scale.
+
+The agent-specific premise comes from a separate primary source: official Codex documentation says parallel write-heavy agent workflows can create conflicts and increase coordination overhead. Runway targets that documented boundary without pretending the historical contributors were agents.
 
 Worktrees isolate edit locations and merge tools resolve completed changes. Neither asks the earlier question: before two agents start, do they intend to change the same behavior?
 
@@ -32,7 +34,7 @@ Worktrees isolate edit locations and merge tools resolve completed changes. Neit
 
 Runway connects forensic proof to prevention.
 
-**Collision Replay** accepts two Git ranges, resolves exact commit SHAs, extracts changed JavaScript/TypeScript paths and changed function declarations, and feeds both scopes through Runway's deterministic collision engine. The bundled public replay reconstructs ESLint PRs #20248 and #20487. It finds four shared paths and the same changed function, then emits a SHA-256-fingerprinted JSON artifact. The replay is explicitly counterfactual: it proves the overlap existed; it does not claim Runway was deployed in that repository.
+**Collision Replay** accepts two Git ranges, resolves exact commit SHAs, extracts changed JavaScript/TypeScript paths and changed function declarations, and feeds both scopes through Runway's deterministic collision engine. The bundled public replay reconstructs ESLint PRs #20248 and #20487. It finds four shared paths and the same changed function, then emits a SHA-256-fingerprinted JSON artifact. The replay is explicitly counterfactual and human-authored: it proves overlap existed; it does not claim Runway was deployed there or measure agent-collision prevalence.
 
 **Live lanes** turn the lesson into a code-scope contract. Before implementation, each agent declares expected files, exported symbols, and behavioral contracts. Runway returns an inspectable clear, caution, protected-owner, or hold decision. Direct scope overlap can stop the later lane; shallow dependency proximity remains a caution, not false certainty.
 
@@ -48,13 +50,15 @@ The browser opens on the public collision replay, then moves to a concrete preve
 
 ### How Codex and GPT-5.6 were used
 
-Codex with GPT-5.6-terra was the engineering collaborator, not a runtime chat wrapper. It helped narrow the problem, implement the core, replay extractor, CLI, dashboard, skill, concurrency protocol, and adversarial tests. QA found and fixed Windows path normalization, symbol-case, ownership ordering, invalid transitions, concurrent writes, stale locks, diff drift, false-positive replay symbols, and inaccurate claims.
+Runway makes no runtime GPT call. GPT-5.6-terra ran through Codex as the engineering environment that built and pressure-tested the product. It helped narrow the problem, implement the core, replay extractor, CLI verification gate, dashboard, skill, concurrency protocol, and adversarial tests. QA found and fixed Windows path normalization, symbol-case, ownership ordering, invalid transitions, concurrent writes, stale locks, diff drift, false-positive replay symbols, and inaccurate claims.
+
+Keeping collision decisions deterministic is a product choice: judges can reproduce every hold, verification result, and Git audit without an API key or hidden model judgment. The official rules ask entrants to build with Codex/GPT-5.6, explain that collaboration, and provide the `/feedback` Codex Session ID; they do not state that the shipped runtime must call a model API.
 
 The session of record is `019f6e9b-8401-78c0-a71b-56273ec52b3f`; the evidence trail is in `03_build_log.md`.
 
 ### Challenges
 
-The central challenge was credibility. A fixture alone could make Runway look like a linter built around its own example. Collision Replay grounds the problem in public Git history while preserving provenance and a clear counterfactual disclosure.
+The central challenge was credibility. A fixture alone could make Runway look like a linter built around its own example. Collision Replay grounds the failure shape in public Git history, while the visible evidence boundary states that the contributors were human and the replay is not agent-scale data. Official Codex guidance supplies the separate agent-workflow basis.
 
 The second challenge was self-reported proof. Recording an operator's claim that tests passed was not enough. `lane verify` now owns command execution and performs the Git audit afterward, so a test that passes while creating undeclared drift still cannot produce a handoff.
 
@@ -62,7 +66,7 @@ The engineering challenge was safe local mutation. Runway locks writers, reloads
 
 ### Accomplishments
 
-- Reconstructed a documented duplicate-work incident from exact public Git refs.
+- Reconstructed a documented human duplicate-work incident from exact public Git refs without relabeling it as agent evidence.
 - Produced an inspectable replay with four shared paths, one shared changed function, source links, exact SHAs, and a verifiable fingerprint.
 - Converted that historical failure into a pre-edit hold using the same collision engine.
 - Distinguished direct overlap from an import-only caution.
@@ -72,7 +76,7 @@ The engineering challenge was safe local mutation. Runway locks writers, reloads
 
 ### What we learned
 
-The strongest proof of a coordination tool is not a simulated swarm; it is a real failure reconstructed from source history. The most useful control point is also not an opaque confidence score. It is a small, inspectable contract: declared before work, tested by the tool, and checked against Git after work.
+Evidence must stay in its lane. Public history proves a duplicate-implementation failure; official product guidance establishes the agent-specific coordination risk; the working build proves Runway's mechanism. None alone proves prevalence or production impact. The useful control point is still a small, inspectable contract: declared before work, tested by the tool, and checked against Git after work.
 
 ### What's next
 
@@ -84,7 +88,7 @@ Next steps are opt-in adapters for more languages, hunk-level symbol conformance
 |---|---|---|
 | Technical implementation (25%) | Exact-ref replay, shared engine, executed proof, post-command Git audit, concurrent state protocol | `web/src/core/replay.js`, `web/bin/runway.mjs`, 30 tests |
 | Design (25%) | Real incident first; exact refs on demand; one guided prevention path; hold versus caution is legible | Hosted no-rebuild dashboard and two submission images |
-| Potential impact (25%) | Public duplicate work becomes measurable, then preventable before another implementation begins | ESLint replay plus live Pricing/Tax scope contract |
+| Potential impact (25%) | Human public history proves the failure shape; official Codex guidance names conflict risk in parallel write-heavy agents; Runway demonstrates the intervention | Explicit evidence-boundary strip, source links, and live Pricing/Tax scope contract |
 | Quality of idea (25%) | One loop connects historical collision evidence to pre-edit prevention and verified handoff | Collision Replay -> Declare -> Reserve -> Run proof -> Audit -> Receipt |
 
 ## Exact public video plan - target 2:50
@@ -128,52 +132,53 @@ npm test
 
 ### Shot list and narration
 
-**0:00-0:24 - Real failure first**
+**0:00-0:30 - Real failure and evidence boundary**
 
 Show the replay card at the top of the hosted demo.
 
-> "One public issue produced three independent implementations. Two later pull requests were closed to avoid duplicate work. Runway reconstructs two exact Git ranges and finds four shared paths plus the same changed function. This is real history, not a simulated agent swarm."
+> "One public issue produced three independent human implementations. Two later pull requests were closed to avoid duplicate work. This proves the failure shape, not that agents collide at scale. The agent-specific premise comes separately: official Codex guidance warns parallel write-heavy agents can create conflicts and coordination overhead. Runway turns that risk into a pre-edit gate."
 
-**0:24-0:43 - Provenance, not theater**
+**0:30-0:48 - Provenance, not theater**
 
 Expand **Inspect exact refs + receipt** and point to the SHAs, source links, disclosure, and fingerprint.
 
-> "Every ref is inspectable, and the JSON artifact is fingerprinted. This is a counterfactual replay: Runway was not deployed there. It proves the overlap existed and shows what would have been held for review."
+> "Runway reconstructs two exact Git ranges: four shared paths and the same changed function. Every ref is inspectable. This counterfactual shows what would have been held; it does not rewrite the human incident as agent evidence."
 
-**0:43-1:13 - Turn the failure into prevention**
+**0:48-1:15 - Turn the failure into prevention**
 
 Show the Tax hold, then click **Reroute held lane** and **Reserve clear lane**.
 
 > "Now the prevention contract. Pricing is airborne. Tax declared the same file, exported symbol, and pricing behavior, so Runway protects the owner and holds the later lane before editing. I reroute Tax to its own module and reserve it. Checkout is only a caution because an import is evidence, not proof of conflict."
 
-**1:13-1:34 - Honest browser boundary**
+**1:15-1:32 - Honest browser boundary**
 
 Click **Audit changed files** and **Create fixture receipt**.
 
 > "The browser uses a clearly labeled fixture snapshot; it does not pretend to execute Git or tests. It demonstrates the same decision model and preserves declared scope, diff conformance, and fixture evidence."
 
-**1:34-2:10 - Executed proof and post-command audit**
+**1:32-2:05 - Executed proof and post-command audit**
 
 Switch to the prepared terminal. Run the first failing `lane verify`, then the corrected one.
 
 > "The real CLI executes this focused test itself. The test passes, but the fresh Git audit finds undeclared `src/quote.js`, so no handoff is created. I remove only that drift and rerun. Now Runway records the real exit code, timing, output hashes, and conformant changed files before issuing the receipt."
 
-**2:10-2:31 - Reproducible engineering**
+**2:05-2:25 - Reproducible engineering**
 
 Show successful `replay verify`, `npm test`, and briefly the bundled skill.
 
 > "The replay artifact verifies, and thirty tests cover extraction, tampering, collision logic, real Git drift, command failure, lane mutation, concurrent writers, and lifecycle guards. The Codex skill turns the flow into a reusable agent protocol."
 
-**2:31-2:50 - Close**
+**2:25-2:50 - GPT-5.6 use and close**
 
 Return to the replay and live-flow overview.
 
-> "Codex with GPT-5.6-terra helped build and pressure-test this end to end. Runway does one job: prove duplicate implementation happened, then stop the next collision before code and verify the result after."
+> "GPT-5.6 does not run inside Runway. It ran through Codex to build and pressure-test the replay parser, CLI gate, concurrency, interface, and tests. Runtime stays deterministic so every decision is reproducible without a key or hidden model call. The dated commits and Codex Session ID are the evidence."
 
 ## Capture checklist
 
 - Use `docs/runway-judge-demo.png` as the first image and `docs/runway-real-replay.png` as the second.
 - Keep exact source URLs, commit refs, overlap evidence, and disclosure readable.
+- Keep all three boundary cells readable: human incident, official agent-specific basis, and Codex/GPT-5.6 build versus deterministic runtime.
 - Use Runway-owned UI only; do not show third-party logos, hover source links, expose third-party marks in the browser chrome, or copy third-party screenshots. The replay card intentionally uses a generic source label while preserving the real links for inspection.
 - The terminal must visibly show the passing test followed by `unexpectedFiles: ["src/quote.js"]` and no handoff, then the corrected receipt.
 - Capture a fresh `npm test` result showing 30 passing tests.
@@ -183,9 +188,9 @@ Return to the replay and live-flow overview.
 
 ## Claims to make - and not make
 
-Say: **real Git-history collision replay**, **counterfactual**, **exact refs**, **code-scope contract**, **Runway-executed proof**, **post-command Git audit**, and **advisory, not enforcement**.
+Say: **human-authored historical replay**, **failure-shape proof, not prevalence**, **official Codex agent-conflict guidance**, **counterfactual**, **exact refs**, **GPT-5.6 used through Codex to build**, **deterministic runtime**, **Runway-executed proof**, and **advisory, not enforcement**.
 
-Do not say: Runway caught the original ESLint work, nobody noticed until merge, signed artifact, universal semantic analysis, autonomous intent detection, distributed lock, runtime write enforcement, symbol-level diff enforcement, or guaranteed safe merge.
+Do not say: the historical contributors were agents, agent collisions are proven at scale, Runway caught the original ESLint work, nobody noticed until merge, GPT-5.6 runs inside the shipped product, signed artifact, universal semantic analysis, autonomous intent detection, distributed lock, runtime write enforcement, symbol-level diff enforcement, or guaranteed safe merge.
 
 ## Final account-bound checklist
 

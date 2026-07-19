@@ -1,6 +1,6 @@
 export const publicReplay = {
   title: 'One issue. Three implementations. Two duplicate-work closures.',
-  summary: 'Runway reconstructed two exact public Git ranges and found four shared paths plus the same changed rule function. That overlap matches the later documented duplicate-work closures.',
+  summary: 'These contributors were human, not AI agents. The replay proves a real duplicate-implementation failure shape and exact overlap; it does not claim agent-collision prevalence.',
   source: {
     repository: 'public JS linter',
     repositoryUrl: 'https://github.com/eslint/eslint',
@@ -51,6 +51,11 @@ export const publicReplay = {
     receipt: '690814f55c81bd9b3c0224f53cbe827551c82287c1e93d55c65c72c7d92e8d9e',
     artifact: 'docs/replays/eslint-20014.json',
   },
-  disclosure: 'Counterfactual replay: actual Git changes stand in for the scopes that should have been declared. It proves overlap existed; Runway was not deployed for these PRs.',
+  disclosure: 'Counterfactual replay: human-authored Git changes stand in for scopes that should have been declared. It proves overlap existed; Runway was not deployed there and this is not agent-scale prevalence data.',
+  agentBasis: 'Official Codex guidance separately warns that parallel write-heavy agent workflows can create conflicts and increase coordination overhead.',
+  buildMode: {
+    builtWith: 'Codex + GPT-5.6-terra',
+    runtime: 'Deterministic / no model call',
+  },
   attribution: 'Factual public metadata and MIT-licensed source identifiers. Runway is not affiliated with or endorsed by the source project, its foundation, or contributors.',
 }
